@@ -1,0 +1,196 @@
+Discussion 1: 
+4/3/2015
+
+Contents
+Discussion 1	1
+
+
+Discussion 1
+
+Teaching Assistance Information: 
+Tuan Le (tuanle@cs.ucla.edu)
+Office Hours: Mondays 2:30 – 4:30 @ BH 2432
+
+Overview
+1)	Lab 1: Shell
+	a)	Command parser
+	b)	Sequential execution model
+	c)	Parallel execution model. 
+2)	Minilab 1: System calls, interrupts. (5-6 hours)
+3)	Lab 2: Immemory block device
+	a)	Remm disk? 
+	b)	Synchronization, deadlock. 
+4)	Lab 3: File systems. 
+5)	Lab 4: P2P (peer to peer), security
+6)	Minilab 2: OS scheduler
+Lab 1 and 4: Linux Server
+Others: custom Ubuntu server, with emulator, …
+
+•	Lab 1: 
+	a)	read-command.c (1a)
+	b)	execute-command.c (1b, 1c)
+•	make_command_stream outputs the input for read_command_stream (which should be easy)
+•	command stream
+	a)	collection of command trees. 
+		i)	a && b; c
+		ii)	a\nb (one command tree – single newline is a substitude for a semicolon)
+		iii)	a\n\nb (two command trees – more than one newline is just a separation)
+	b)	Simple command: no operators
+		i)	echo
+		ii)	ls –l at.txt
+		iii)	cat < b.txt
+	c)	Sequence command: combination of simple commands
+		i)	echo a; echo b (3 commands)
+	d)	.Other command types: 
+		i)	AND &&
+		ii)	OR ||
+		iii)	PIPE |
+		iv)	SUBSHELL ()
+		v)	SEQUENCE ; \n
+	e)	.
+	f)	.
+// Data associated with a command.
+struct command
+{
+  enum command_type type;
+
+  // Exit status, or -1 if not known (e.g., because it has not exited yet).
+  int status;
+
+  // I/O redirections, or null if none.
+  char *input;
+  char *output;
+
+  union
+  {
+    // for AND_COMMAND, SEQUENCE_COMMAND, OR_COMMAND, PIPE_COMMAND:
+    struct command *command[2];
+
+    // for SIMPLE_COMMAND:
+    char **word;
+
+    // for SUBSHELL_COMMAND:
+    struct command *subshell_command;
+  } u;
+};
+•	Example: echo a; echo b (3 commands)
+•	Converting from command to struct: (simple command), define cmd_b similarly
+	a)	struct command *cmd_a = (struct command*) malloc(…);
+	b)	cmd_a -> type = SIMPLE_COMMAND;
+	c)	cmd_a -> status = -1; // only matters for 1B and 1C. 
+	d)	cmd_a -> input = NULL; 
+	e)	cmd_a -> output = NULL; 
+	f)	cmd_a -> u.word[0] = “echo”; // need to malloc word as well. 
+	g)	cmd_a -> u.word[1] = “a”;
+	h)	cmd_a -> u.word[2] = 0; //NECESSARY for 1B, 1C to work!
+	i)	For ls –l a.txt, there are three words ls, -l, a.txt and the null byte. 
+•	Sequence command: 
+	a)	struct command *seq_cmd = (struct command*) malloc(…);
+	b)	seq_cmd -> type = SEQUENCE_COMMAND;
+	c)	// input and output are still NULL, as there is no redirection. 
+	d)	seq_cmd -> u.command[0] = cmd_a;
+	e)	seq_cmd -> u.command[1] = cmd_b; 
+•	Precedence of Operators. 
+	a)	Highest precedence: | (pipe)
+	b)	Medium precedence: &&, || (left associative)
+	c)	Lowest Precedence: ;, \n (left associative)
+•	echo a; echo b; echo c. The tree would be as follows: 
+	a)	; 
+		i)	; // would be command[0]
+			(1)	echo a
+			(2)	echo b
+		ii)	echo c // would be command [1]
+•	infix -> prefix. (stack manipulation)
+•	example: ls –l | sort; echo.a && (cat) < b.txt
+	a)	;
+		i)	|
+			(1)	ls –l
+			(2)	sort
+		ii)	&&
+			(1)	echo a
+			(2)	()
+				(a)	struct command *subshell_cmd = …;
+				(b)	subshell_cmd -> type = SUBSHELL_COMMAND;
+				(c)	subshell_cmd -> input = “b.txt”; // output is NULL. 
+				(d)	subshell_cmd -> u.subshell_command = cat_cmd; // root of tree.
+•
+
+
+Algorithm for automation of creating command trees: 
+Maintain 2 stacks: operator and command. 
+1. if a simple command, push it onto a command stack. 
+2. if (, push onto operator stack. 
+3. if an operator and operator stack is empty. 
+	push operator onto operator stack. 
+4. if an operator and operator stack is not empty...
+	4a. pop all operators with >= precedence off operator stack. 
+	for each operator, pop 2 commands off command stacks. 
+	combine into new command, push it onto command stack. 
+	4b. stop when reach an operator with lower precedence or a ( or end.
+	4c. push new operator onto operator stack. 
+5. If encounter ) pop operators off stack like 4a until see a matching (
+	create a subshell command by popping top command from command stack. 
+	push new command to command stack. 
+6. Back to 2. 
+7. Nothing left. Pop remaining operators like 4a. 
+
+When you see a redirection (< or >), just add the redirection to the input/output field of 
+the top command of the command stack. 
+
+
+When there are more than one newlines, we assume that there are two SEPARATE command trees. 
+also notice that...
+a \n
+\n
+b
+is two command trees. 
+
+a && \n
+\n
+\n
+b 
+is equivalent to a && b
+
+a; \n
+\n
+b
+however, is two command trees, as semicolons can optionally placed at the end. 
+
+we should be able to detect invalid syntax, though. such as a &&; b
+
+
+Command Stream: (linked list)
+  collection of command trees. 
+    command tree is defined by the root node of the tree. 
+  collection of root nodes. 
+
+struct commandNode {
+  struct command *command; // root of command tree. 
+  struct commandNode *next; // for singly linked list. 
+}
+
+typedef struct command_stream {
+  struct commandNode *head; 
+  struct commandNode *tail; 
+  struct commandNode *cursor; // iterator type? used to implement read_command_stream. 
+			      // initialize cursor to the head pointer. 
+}
+
+command_t
+
+read_command_stream (command_stream_t s)
+
+{
+
+  if ( s -> cursor == NULL )
+    return NULL;
+  command_t temp = s -> cursor; 
+  s -> cursor = s -> cursor -> next; 
+  return temp; 
+}	
+
+dependencies: 
+RAW
+WAR
+WAW
+(google them)
