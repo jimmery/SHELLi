@@ -50,7 +50,7 @@ opPrecedence(enum command_type commandType)
 	case PIPE_COMMAND:
 		return 2;
 	}
-	return -1;
+	return -1; // this really shouldn't be used. 
 }
 
 /* FIXME: Define the type 'struct command_stream' here.  This should
@@ -83,7 +83,7 @@ make_command_stream (int (*get_next_byte) (void *),
      You can also use external functions defined in the GNU C Library.  */
   //error (1, 0, "command reading not yet implemented");
 
-  int lineNum = 1;
+  int lineNum = 1; // this will be used for error messages. 
 
   // maintains the stack for operations. 
   // this will use the enum values provided in command-internals as values. 
@@ -111,6 +111,8 @@ make_command_stream (int (*get_next_byte) (void *),
   char c = get_next_byte(get_next_byte_argument);
   int charType = charaCase(c);
   int prevType = 4; // This corresponds with a newline character. This implies a new command tree. 
+  // the prevType variable only takes on 3 values: 0 (for previous is a command)
+  // 1 (for previous is an operator), and 4 (for it's time to start a new command tree)
   while (true) // TODO check the end condition. 
   { 
 	  if (charType == 0) // letters, numbers, etc.
@@ -136,8 +138,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	      struct command *cmd = (struct command*) malloc(sizeof(struct command*));
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
-		  // input and output to be determined if the next char is < or >
-		  // parse from buffer the words. 
+		  // TODO parse from buffer the words. 
 
 		  // place the command on the stack. 
 		  if (cmdIndex >= cmdStackSize)
@@ -162,7 +163,10 @@ make_command_stream (int (*get_next_byte) (void *),
 
 		  // determine which kind of operation it is. 
 		  if (c == ';')
+		  {
 			  opType = SEQUENCE_COMMAND;
+			  c = get_next_byte(get_next_byte_argument);
+		  }
 		  else if (c == '&')
 		  {
 			  char c_next = get_next_byte(get_next_byte_argument);
@@ -171,6 +175,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  // TODO print some error. & character is not known to us.
 			  }
 			  opType = AND_COMMAND;
+			  c = get_next_byte(get_next_byte_argument);
 		  }
 		  else if (c == '|')
 		  {
@@ -178,14 +183,17 @@ make_command_stream (int (*get_next_byte) (void *),
 			  if (c_next == '|')
 			  {
 				  opType = OR_COMMAND;
+				  c = get_next_byte(get_next_byte_argument);
 			  }
 			  else
 			  {
 				  opType = PIPE_COMMAND;
+				  c = c_next;
 			  }
 			  // TODO check other cases for errors?
 		  }
 
+		  charType = charaCase(c);
 		  int opPrec = opPrecedence(opType);
 
 		  // pop all operators with >= precedence off operator stack. 
@@ -218,7 +226,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  newCmd->status = -1;
 			  newCmd->input = NULL;
 			  newCmd->output = NULL;
-			  // parse from buffer the words. are there words for this? o.O
+			  // TODO parse from buffer the words. are there words for this? o.O
 			  newCmd->u.command[0] = cmda;
 			  newCmd->u.command[1] = cmdb;
 
@@ -240,8 +248,6 @@ make_command_stream (int (*get_next_byte) (void *),
 		  opStack[opIndex] = opType;
 		  opIndex++;
 
-		  c = get_next_byte(get_next_byte_argument);
-		  charType = charaCase(c);
 		  prevType = 1;
 	  }
 	  else if (charType == 2)
@@ -290,7 +296,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
 				  newCmd->output = NULL;
-				  // parse from buffer the words. are there words for this? o.O
+				  // TODO parse from buffer the words. are there words for this? o.O
 				  newCmd->u.command[0] = cmda;
 				  newCmd->u.command[1] = cmdb;
 
@@ -303,13 +309,13 @@ make_command_stream (int (*get_next_byte) (void *),
 				  cmdStack[cmdIndex] = newCmd;
 				  cmdIndex++;
 			  }
-			  if (opIndex == 0)
+			  if (opIndex <= 0)
 			  {
 				  // TODO print an error message. no open parentheses. 
 			  }
 			  opIndex--; // pop the '(' off the operator stack. 
 
-			  if (cmdIndex < 1)
+			  if (cmdIndex <= 0)
 			  {
 				  // TODO print some syntax error. no command in parentheses. 
 			  }
@@ -459,7 +465,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  }
 			  opStack[opIndex] = opType;
 			  opIndex++;
-			  prevType = 1;
+			  prevType = 1; // as if we just added an operator onto the stack. 
 		  }
 		  else if (prevType == 1)
 		  {
@@ -497,15 +503,11 @@ make_command_stream (int (*get_next_byte) (void *),
 					  commands.tail->next = node;
 					  commands.tail = node;
 				  }
-
+				  prevType = 4;
 			  }
-			  else
-			  {
-				  // treat the newline as an empty space. 
-				  // just advance to the next character. 
-				  c = get_next_byte(get_next_byte_argument);
-				  charType = charaCase(c);
-			  }
+			  // then we just advance the character. 
+			  // in the case that the top operation is not a sequence command, 
+			  // we treat the newline as an empty space and maintain prevType. 
 			  c = get_next_byte(get_next_byte_argument);
 			  charType = charaCase(c);
 		  }
@@ -514,6 +516,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  // just advance the counter. treat as empty space. 
 			  c = get_next_byte(get_next_byte_argument);
 			  charType = charaCase(c);
+			  // keep whatever prevType it is. 
 		  }
 
 		  // TODO check if last characters form a command. 
@@ -525,6 +528,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  // just advance to the next character. 
 		  c = get_next_byte(get_next_byte_argument);
 		  charType = charaCase(c);
+		  // keep the same prevType
 	  }
 	  else if (charType == 6) // comment. 
 	  {
