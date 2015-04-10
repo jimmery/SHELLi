@@ -278,11 +278,11 @@ make_command_stream (int (*get_next_byte) (void *),
 				  // if (, stop. 
 				  if (topOp == SUBSHELL_COMMAND)
 					  break;
-				  int topPrec = opPrecedence(topOp);
 
 				  // keep popping operators until we reach a '(' (SUBSHELL_COMMAND on stack)
 				  opIndex--; // pop the operator off the stack. 
 
+				  // for each operator popped off, 
 				  // pop two commands off the stack, as all other operators are binary operators. 
 				  if (cmdIndex < 2)
 				  {
@@ -414,9 +414,8 @@ make_command_stream (int (*get_next_byte) (void *),
 				  // any sense to me. This assumes that it cannot. 
 				  if (topOp == SUBSHELL_COMMAND)
 				  {
-					  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses");
+					  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses", lineNum);
 				  }
-				  int topPrec = opPrecedence(topOp);
 				  opIndex--; // pop the operator off the stack. 
 
 				  // pop two commands off the stack. 
@@ -485,7 +484,7 @@ make_command_stream (int (*get_next_byte) (void *),
 					  opStackSize *= 2;
 					  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
 				  }
-				  opStack[opIndex] = opType;
+				  opStack[opIndex] = SEQUENCE_COMMAND;
 				  opIndex++;
 				  prevType = 1; // as if we just added an operator onto the stack. 
 				  c = c_next;
@@ -582,9 +581,8 @@ make_command_stream (int (*get_next_byte) (void *),
 	  // if (, stop. 
 	  if (topOp == SUBSHELL_COMMAND)
 	  {
-		  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses");
+		  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses", lineNum);
 	  }
-	  int topPrec = opPrecedence(topOp);
 	  opIndex--; // pop the operator off the stack. 
 
 	  // pop two commands off the stack. 
