@@ -166,7 +166,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  // we cannot have a binary operator without a command in front. 
 		  if (prevType != 0)
 		  {
-			  // TODO print some error message. 
+			  error(1, 1, "Syntax Error in Line %d: Expected binary operator preceded by operand", lineNum);
 		  }
 		  enum command_type opType;
 
@@ -181,7 +181,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  char c_next = get_next_byte(get_next_byte_argument);
 			  if (c_next != '&')
 			  {
-				  // TODO print some error. & character is not known to us.
+				  error(1, 1, "Error in Line %d: Character Unknown", lineNum);
 			  }
 			  opType = AND_COMMAND;
 			  c = get_next_byte(get_next_byte_argument);
@@ -222,7 +222,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  // pop two commands off the stack. 
 			  if (cmdIndex < 2)
 			  {
-				  // TODO print some syntax error. 
+				  error(1, 1, "Syntax Error in Line %d: Binary operator without enough operands", lineNum);
 			  }
 			  cmdIndex--;
 			  struct command *cmdb = cmdStack[cmdIndex];
@@ -246,7 +246,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  if (opIndex >= opStackSize)
 		  {
 			  opStackSize *= 2;
-			  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
+			  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
 		  }
 		  opStack[opIndex] = opType;
 		  opIndex++;
@@ -262,7 +262,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  if (opIndex >= opStackSize)
 			  {
 				  opStackSize *= 2;
-				  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
+				  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
 			  }
 			  opStack[opIndex] = opType;
 			  opIndex++;
@@ -288,7 +288,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  // pop two commands off the stack, as all other operators are binary operators. 
 				  if (cmdIndex < 2)
 				  {
-					  // TODO print some syntax error. 
+					  error(1, 1, "Syntax Error in Line %d: Binary operator without enough operands", lineNum);
 				  }
 				  cmdIndex--;
 				  struct command *cmdb = cmdStack[cmdIndex];
@@ -310,21 +310,19 @@ make_command_stream (int (*get_next_byte) (void *),
 			  }
 			  if (opIndex <= 0)
 			  {
-				  // TODO print an error message. no open parentheses. 
+				  error(1, 1, "Syntax Error in Line %d: No matching open parentheses", lineNum);
 			  }
 			  opIndex--; // pop the '(' off the operator stack. 
 
 			  if (cmdIndex <= 0)
 			  {
-				  // TODO print some syntax error. no command in parentheses. 
+				  error(1, 1, "Syntax Error in Line %d: No command in parentheses", lineNum);
 			  }
 			  cmdIndex--;
 			  struct command *cmd_in = cmdStack[cmdIndex];
 			  struct command *cmd_out = (struct command *)malloc(sizeof(struct command));
 			  cmd_out->type = SUBSHELL_COMMAND;
 			  cmd_out->status = -1;
-			  // TODO input and output to be determined if the next char is < or >
-			  // parse from buffer the words. are there words for this? o.O
 			  cmd_out->u.subshell_command = cmd_in;
 
 			  // place the command on the stack. 
@@ -340,7 +338,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  {
 		  if (prevType != 0) // && cmdIndex <= 0
 		  {
-			  // TODO print some error. No command to give input to. 
+			  error(1, 1, "Syntax Error in Line %d: expected command preceding redirection", lineNum);
 		  }
 		  char ch = c;
 
@@ -356,7 +354,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  // if letters/digits/etc. are read before the next newline/operator,  
 		  if (charType != 0) 
 		  {
-			  // TODO print some syntax error. no input/output. 
+			  error(1, 1, "Error in Line %d: Expected input or output", lineNum);
 		  }
 
 		  // reads in everything up until an operator or the end of a line/file
@@ -425,7 +423,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  // pop two commands off the stack. 
 				  if (cmdIndex < 2)
 				  {
-					  // TODO print some syntax error. 
+					  error(1, 1, "Syntax Error in Line %d: Binary operator without enough operands", lineNum);
 				  }
 				  cmdIndex--;
 				  struct command *cmdb = cmdStack[cmdIndex];
@@ -449,7 +447,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  if (opIndex >= opStackSize)
 			  {
 				  opStackSize *= 2;
-				  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
+				  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
 			  }
 			  opStack[opIndex] = opType;
 			  opIndex++;
@@ -470,11 +468,11 @@ make_command_stream (int (*get_next_byte) (void *),
 				  opIndex--; // remove the SEQUENCE_COMMAND
 				  if (opIndex > 0)
 				  {
-					  // TODO print out some error. Too many operators. 
+					  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
 				  }
 				  if (cmdIndex >= 1)
 				  {
-					  // TODO print out some error. Too many commands. 
+					  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
 				  }
 
 				  struct commandNode *node;
@@ -523,14 +521,14 @@ make_command_stream (int (*get_next_byte) (void *),
 	  }
 	  else // unknown character
 	  {
-		  // TODO print some error. 
+		  error(1, 1, "Error in Line %d: %c Character Unknown", lineNum, c);
 	  }	
 	  charType = charaCase(c);
   }
 
   if (prevType == 1)
   {
-	  // TODO print some error. 
+	  error(1, 1, "Syntax Error in Line %d: Expected operand following operator", lineNum);
   }
 
   enum command_type opType = SEQUENCE_COMMAND;
@@ -553,7 +551,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  // pop two commands off the stack. 
 	  if (cmdIndex < 2)
 	  {
-		  // TODO print some syntax error. 
+		  error(1, 1, "Syntax Error in Line %d: Binary operator without enough operands", lineNum);
 	  }
 	  cmdIndex--;
 	  struct command *cmdb = cmdStack[cmdIndex];
@@ -574,14 +572,13 @@ make_command_stream (int (*get_next_byte) (void *),
 	  cmdIndex++;
   }
 
-  // c == EOF
   if (opIndex > 0)
   {
-	  // TODO print out some error. Too many operators. 
+	  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
   }
-  if (cmdIndex > 1)
+  if (cmdIndex >= 1)
   {
-	  // TODO print out some error. Too many commands. 
+	  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
   }
 
   if (cmdIndex == 1)
@@ -602,6 +599,10 @@ make_command_stream (int (*get_next_byte) (void *),
 		  commands->tail = node;
 	  }
   }
+
+  free(opStack);
+  free(cmdStack);
+  free(buffer);
   return commands;
 }
 
