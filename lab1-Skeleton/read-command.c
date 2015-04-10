@@ -4,6 +4,8 @@
 #include "command-internals.h"
 
 #include <error.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -49,6 +51,9 @@ opPrecedence(enum command_type commandType)
 		return 1;
 	case PIPE_COMMAND:
 		return 2;
+	case SIMPLE_COMMAND:
+	case SUBSHELL_COMMAND:
+		return -1;
 	}
 	return -1; // this really shouldn't be used. 
 }
@@ -123,7 +128,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  charType = charaCase(c);
 
 		  // reads in everything up until an operator or the end of a line/file
-		  while (charType == 0 || charaType == 5)
+		  while (charType == 0 || charType == 5)
 		  {
 			  if (bufIndex >= bufSize)
 			  {
@@ -240,7 +245,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  if (opIndex >= opStackSize)
 		  {
 			  opStackSize *= 2;
-			  opStack = (enum command_type*)malloc(opStack, opStackSize*sizeof(enum command_type));
+			  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
 		  }
 		  opStack[opIndex] = opType;
 		  opIndex++;
@@ -256,7 +261,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  if (opIndex >= opStackSize)
 			  {
 				  opStackSize *= 2;
-				  opStack = (enum command_type*)malloc(opStack, opStackSize*sizeof(enum command_type));
+				  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
 			  }
 			  opStack[opIndex] = opType;
 			  opIndex++;
@@ -264,6 +269,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  }
 		  else // c == ')'
 		  {
+			  struct command *newCmd;
 			  // TODO essentially copy paste of while loop above? can we turn that into a function easily?
 			  // pop all operators with >= precedence off operator stack. 
 			  while (opIndex > 0)
@@ -288,7 +294,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  cmdIndex--;
 				  struct command *cmda = cmdStack[cmdIndex];
 
-				  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
+				  newCmd = (struct command *)malloc(sizeof(struct command*));
 				  newCmd->type = topOp;
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
@@ -354,7 +360,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  }
 
 		  // reads in everything up until an operator or the end of a line/file
-		  while (charType == 0 || charaType == 5)
+		  while (charType == 0 || charType == 5)
 		  {
 			  if (bufIndex >= bufSize)
 			  {
@@ -372,21 +378,21 @@ make_command_stream (int (*get_next_byte) (void *),
 		  if (ch == '<') // check previous input is NULL?
 		  {
 			  // malloc an input. 
-			  cmdStack[cmdIndex - 1].input = (char*)malloc(bufIndex * sizeof(char)); 
+			  cmdStack[cmdIndex - 1]->input = (char*)malloc(bufIndex * sizeof(char)); 
 			  int i = 0;
 			  for (; i < bufIndex; i++)
 			  {
-				  cmdStack[cmdIndex - 1].input[i] = buffer[i];
+				  cmdStack[cmdIndex - 1]->input[i] = buffer[i];
 			  }
 		  }
 		  else
 		  {
 			  // malloc an output. 
-			  cmdStack[cmdIndex - 1].output = (char*)malloc(bufIndex * sizeof(char));
+			  cmdStack[cmdIndex - 1]->output = (char*)malloc(bufIndex * sizeof(char));
 			  int i = 0;
 			  for (; i < bufIndex; i++)
 			  {
-				  cmdStack[cmdIndex - 1].output[i] = buffer[i];
+				  cmdStack[cmdIndex - 1]->output[i] = buffer[i];
 			  }
 		  }
 
@@ -443,7 +449,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  if (opIndex >= opStackSize)
 			  {
 				  opStackSize *= 2;
-				  opStack = (enum command_type*)malloc(opStack, opStackSize*sizeof(enum command_type));
+				  opStack = (enum command_type*)malloc(opStackSize*sizeof(enum command_type));
 			  }
 			  opStack[opIndex] = opType;
 			  opIndex++;
@@ -471,11 +477,11 @@ make_command_stream (int (*get_next_byte) (void *),
 					  // TODO print out some error. Too many commands. 
 				  }
 
-				  commandNode node;
-				  node.command = cmdStack[0];
-				  node.next = nullptr;
+				  struct commandNode *node;
+				  node->command = cmdStack[0];
+				  node->next = NULL;
 
-				  if (commands.head == NULL)
+				  if (commands->head == NULL)
 				  {
 					  commands->head = node;
 					  commands->tail = node;
@@ -584,11 +590,11 @@ make_command_stream (int (*get_next_byte) (void *),
 
   if (cmdIndex == 1)
   {
-	  commandNode node;
-	  node.command = cmdStack[0];
-	  node.next = nullptr;
+	  struct commandNode *node;
+	  node->command = cmdStack[0];
+	  node->next = NULL;
 
-	  if (commands.head == NULL)
+	  if (commands->head == NULL)
 	  {
 		  commands->head = node;
 		  commands->tail = node;
@@ -608,7 +614,6 @@ read_command_stream (command_stream_t s)
 {
 	if (s->cursor == NULL)
 		return NULL;
-	command_t temp = s->cursor;
 	s->cursor = s->cursor->next;
 	return 0;
 }
