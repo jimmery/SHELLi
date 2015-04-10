@@ -120,8 +120,6 @@ make_command_stream (int (*get_next_byte) (void *),
   // 1 (for previous is an operator), and 4 (for it's time to start a new command tree)
   while (c != EOF) // TODO check the end condition. 
   { 
-	printf("%c\t", c);
-	printf("Chartype is %d\n", charType);
 	  if (charType == 0) // letters, numbers, etc.
 	  {
 		  buffer[bufIndex] = c;
