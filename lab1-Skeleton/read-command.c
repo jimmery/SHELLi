@@ -401,21 +401,22 @@ make_command_stream (int (*get_next_byte) (void *),
 		  // this newline can be a considered a SEQUENCE_COMMAND. can we?
 		  if (prevType == 0)
 		  {
-			  enum command_type opType = SEQUENCE_COMMAND;
-			  int opPrec = opPrecedence(opType);
-			  // pop all operators with >= precedence off operator stack.
+			  // treat the newline as a SEQUENCE_COMMAND, which has lower precedence than all other 
+			  // commands, which implies that the command stack should be completely empty
+			  // after this operation. However, there is a chance that this is the end of the 
+			  // command tree. 
 			  while (opIndex > 0)
 			  {
 				  // check the top of the operator stack. 
 				  enum command_type topOp = opStack[opIndex - 1];
-				  // if (, stop. 
+				  // TODO check something: 
+				  // the specs say that newlines can appear before ), but this doesn't make
+				  // any sense to me. This assumes that it cannot. 
 				  if (topOp == SUBSHELL_COMMAND)
-					  break;
+				  {
+					  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses");
+				  }
 				  int topPrec = opPrecedence(topOp);
-				  // if top has lower precedence, stop. 
-				  if (topPrec < opPrec)
-					  break;
-				  // here, top has a precedence >= current operator. 
 				  opIndex--; // pop the operator off the stack. 
 
 				  // pop two commands off the stack. 
@@ -437,41 +438,22 @@ make_command_stream (int (*get_next_byte) (void *),
 				  newCmd->u.command[1] = cmdb;
 
 				  // place the command on the stack. 
-				  // index check not needed, as two commands just popped off. 
+				  // no need to check indexes, as two commands just popped. 
 				  cmdStack[cmdIndex] = newCmd;
 				  cmdIndex++;
 			  }
-			  // push new operator onto operator stack. 
-			  if (opIndex >= opStackSize)
+			  if (opIndex > 0)
 			  {
-				  opStackSize *= 2;
-				  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
+				  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
 			  }
-			  opStack[opIndex] = opType;
-			  opIndex++;
-			  prevType = 1; // as if we just added an operator onto the stack. 
-		  }
-		  else if (prevType == 1) // previous is a command. 
-		  {
-			  enum command_type topOp = opStack[opIndex - 1];
-			  if (topOp == SEQUENCE_COMMAND) // two newlines, or a semicolon followed by a newline. 
+			  if (cmdIndex >= 1)
 			  {
-				  // TODO this is a pretty special case, i feel. not exactly sure if semicolon followed by 
-				  // newline is two command trees
-				  // current implementation assumes that
-				  // a;\nb will be two separate command trees. 
-
-				  // END OF COMMAND TREE. 
-
-				  opIndex--; // remove the SEQUENCE_COMMAND
-				  if (opIndex > 0)
-				  {
-					  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
-				  }
-				  if (cmdIndex >= 1)
-				  {
-					  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
-				  }
+				  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
+			  }
+			  char c_next = get_next_byte(get_next_byte_argument);
+			  if (c_next == '\n')
+			  {
+				  //END OF COMMAND TREE.
 
 				  struct commandNode *node;
 				  node->command = cmdStack[0];
@@ -489,17 +471,80 @@ make_command_stream (int (*get_next_byte) (void *),
 					  commands->tail = node;
 				  }
 				  prevType = 4;
+				  c = get_next_byte(get_next_byte_argument);
 			  }
-			  // then we just advance the character. 
-			  // in the case that the top operation is not a sequence command, 
-			  // we treat the newline as an empty space and maintain prevType. 
+			  else
+			  {
+				  //Treat this newline as a semicolon (sequence command). 
+				  //since sequence commands have lowest priority, we can assume that all
+				  // remaining commands/operators should come off at this point, under
+				  // expected circumstances. 
+				  // push new operator onto operator stack. 
+				  if (opIndex >= opStackSize)
+				  {
+					  opStackSize *= 2;
+					  opStack = (enum command_type*)realloc(opStack, opStackSize*sizeof(enum command_type));
+				  }
+				  opStack[opIndex] = opType;
+				  opIndex++;
+				  prevType = 1; // as if we just added an operator onto the stack. 
+				  c = c_next;
+			  }
+		  }
+		  else if (prevType == 1) // previous is a command. 
+		  {
+			  enum command_type topOp = opStack[opIndex - 1];
+			  // this deals with the optional semicolon ending of any command tree line.
+			  if (topOp == SEQUENCE_COMMAND)
+			  {
+				  char c_next = get_next_byte(get_next_byte_argument);
+
+				  if (c_next == '\n')
+				  {
+					  // END OF COMMAND TREE. 
+					  opIndex--; // remove the SEQUENCE_COMMAND
+					  if (opIndex > 0)
+					  {
+						  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
+					  }
+					  if (cmdIndex >= 1)
+					  {
+						  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
+					  }
+
+					  struct commandNode *node;
+					  node->command = cmdStack[0];
+					  node->next = NULL;
+
+					  if (commands->head == NULL)
+					  {
+						  commands->head = node;
+						  commands->tail = node;
+						  commands->cursor = node;
+					  }
+					  else
+					  {
+						  commands->tail->next = node;
+						  commands->tail = node;
+					  }
+					  prevType = 4;
+					  c = get_next_byte(get_next_byte_argument);
+				  }
+				  else
+				  {
+					  // then we just advance the character. 
+					  // in the case that the top operation is not a sequence command, 
+					  // we treat the newline as an empty space and maintain prevType.
+					  c = c_next; // prevType remains 1.
+				  }
+			  }
 		  }
 		  else // prevType == 4;
 		  {
 			  // just advance the counter. treat as empty space. 
 			  // keep whatever prevType it is. 
+			  c = get_next_byte(get_next_byte_argument);
 		  }
-		  c = get_next_byte(get_next_byte_argument);
 
 		  lineNum++; //increase the line counter for errors sake.
 	  }
@@ -529,8 +574,6 @@ make_command_stream (int (*get_next_byte) (void *),
 	  error(1, 1, "Syntax Error in Line %d: Expected operand following operator", lineNum);
   }
 
-  enum command_type opType = SEQUENCE_COMMAND;
-  int opPrec = opPrecedence(opType);
   // pop all operators with >= precedence off operator stack.
   while (opIndex > 0)
   {
@@ -538,12 +581,10 @@ make_command_stream (int (*get_next_byte) (void *),
 	  enum command_type topOp = opStack[opIndex - 1];
 	  // if (, stop. 
 	  if (topOp == SUBSHELL_COMMAND)
-		  break;
+	  {
+		  error(1, 1, "Syntax Error in Line %d: Expected closing parentheses");
+	  }
 	  int topPrec = opPrecedence(topOp);
-	  // if top has lower precedence, stop. 
-	  if (topPrec < opPrec) // every operator should have higher precedence. 
-		  break;
-	  // here, top has a precedence >= current operator. 
 	  opIndex--; // pop the operator off the stack. 
 
 	  // pop two commands off the stack. 
