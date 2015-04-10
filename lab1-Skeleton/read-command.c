@@ -7,7 +7,7 @@
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
-#include <cctype.h>
+//#include <cctype.h>
 
 static int
 charaCase(char c)
@@ -62,14 +62,14 @@ struct commandNode
 	struct commandNode *next;
 };
 
-typedef struct
+struct command_stream
 {
 	struct commandNode *head;
 	struct commandNode *tail;
 	struct commandNode *cursor; // this allows for our implementation of 
 								// read_command_stream. 
 								// should be initialized to the head pointer. 
-} command_stream_t;
+};
 
 
 
@@ -103,17 +103,17 @@ make_command_stream (int (*get_next_byte) (void *),
   int numWords = 0;
 
   //initializes the command_stream_t that will be returned. 
-  command_stream_t commands;
-  commands.head = NULL;
-  commands.tail = NULL;
-  commands.cursor = NULL;
+  command_stream_t commands = (command_stream_t) malloc(sizeof(struct command_stream));
+  commands->head = NULL;
+  commands->tail = NULL;
+  commands->cursor = NULL;
 
   char c = get_next_byte(get_next_byte_argument);
   int charType = charaCase(c);
   int prevType = 4; // This corresponds with a newline character. This implies a new command tree. 
   // the prevType variable only takes on 3 values: 0 (for previous is a command)
   // 1 (for previous is an operator), and 4 (for it's time to start a new command tree)
-  while (true) // TODO check the end condition. 
+  while (c != EOF) // TODO check the end condition. 
   { 
 	  if (charType == 0) // letters, numbers, etc.
 	  {
@@ -138,7 +138,9 @@ make_command_stream (int (*get_next_byte) (void *),
 	      struct command *cmd = (struct command*) malloc(sizeof(struct command*));
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
-		  // TODO parse from buffer the words. 
+		  // TODO parse from buffer the words. currently a test: 
+		  cmd->u.word = (char**)malloc(1*sizeof(char*));
+		  cmd->u.word[0] = "hello";
 
 		  // place the command on the stack. 
 		  if (cmdIndex >= cmdStackSize)
@@ -226,16 +228,11 @@ make_command_stream (int (*get_next_byte) (void *),
 			  newCmd->status = -1;
 			  newCmd->input = NULL;
 			  newCmd->output = NULL;
-			  // TODO parse from buffer the words. are there words for this? o.O
 			  newCmd->u.command[0] = cmda;
 			  newCmd->u.command[1] = cmdb;
 
 			  // place the command on the stack. 
-			  if (cmdIndex >= cmdStackSize)
-			  {
-				  cmdStackSize *= 2;
-				  cmdStack = (struct command**) realloc(cmdStack, cmdStackSize*sizeof(struct command*));
-			  }
+			  // no need to check index because two commands just popped off. 
 			  cmdStack[cmdIndex] = newCmd;
 			  cmdIndex++;
 		  }
@@ -296,16 +293,11 @@ make_command_stream (int (*get_next_byte) (void *),
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
 				  newCmd->output = NULL;
-				  // TODO parse from buffer the words. are there words for this? o.O
 				  newCmd->u.command[0] = cmda;
 				  newCmd->u.command[1] = cmdb;
 
 				  // place the command on the stack. 
-				  if (cmdIndex >= cmdStackSize)
-				  {
-					  cmdStackSize *= 2;
-					  cmdStack = (struct command**) realloc(cmdStack, cmdStackSize*sizeof(struct command*));
-				  }
+				  // should never overflow, as 2 were just popped off. 
 				  cmdStack[cmdIndex] = newCmd;
 				  cmdIndex++;
 			  }
@@ -329,11 +321,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  cmd_out->u.subshell_command = cmd_in;
 
 			  // place the command on the stack. 
-			  if (cmdIndex >= cmdStackSize)
-			  {
-				  cmdStackSize *= 2;
-				  cmdStack = (struct command**) realloc(cmdStack, cmdStackSize*sizeof(struct command*));
-			  }
+			  // should never overflow, as one command was just popped off. 
 			  cmdStack[cmdIndex] = newCmd;
 			  cmdIndex++;
 			  prevType = 0; // after a close paren, it acts as if we just created a new command.
@@ -344,14 +332,13 @@ make_command_stream (int (*get_next_byte) (void *),
 	  }
 	  else if (charType == 3) // redirection
 	  {
-		  if (cmdIndex <= 0 && prevType != 0)
+		  if (prevType != 0) // && cmdIndex <= 0
 		  {
 			  // TODO print some error. No command to give input to. 
 		  }
-		  
 		  char ch = c;
 
-		  // reads in everything up until the first non-whitespace character. 
+		  // ignores everything up until the first non-whitespace character. 
 		  c = get_next_byte(get_next_byte_argument);
 		  charType = charaCase(c);
 		  while (charType == 5)
@@ -444,16 +431,11 @@ make_command_stream (int (*get_next_byte) (void *),
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
 				  newCmd->output = NULL;
-				  // TODO parse from buffer the words. are there words for this? o.O
 				  newCmd->u.command[0] = cmda;
 				  newCmd->u.command[1] = cmdb;
 
 				  // place the command on the stack. 
-				  if (cmdIndex >= cmdStackSize)
-				  {
-					  cmdStackSize *= 2;
-					  cmdStack = (struct command**) realloc(cmdStack, cmdStackSize*sizeof(struct command*));
-				  }
+				  // index check not needed, as two commands just popped off. 
 				  cmdStack[cmdIndex] = newCmd;
 				  cmdIndex++;
 			  }
@@ -467,12 +449,13 @@ make_command_stream (int (*get_next_byte) (void *),
 			  opIndex++;
 			  prevType = 1; // as if we just added an operator onto the stack. 
 		  }
-		  else if (prevType == 1)
+		  else if (prevType == 1) // previous is a command. 
 		  {
 			  enum command_type topOp = opStack[opIndex - 1];
-			  if (topOp == SEQUENCE_COMMAND)
+			  if (topOp == SEQUENCE_COMMAND) // two newlines, or a semicolon followed by a newline. 
 			  {
-				  //TODO this is a pretty special case, i feel. not exactly sure what to do yet. 
+				  // TODO this is a pretty special case, i feel. not exactly sure if semicolon followed by 
+				  // newline is two command trees
 				  // current implementation assumes that
 				  // a;\nb will be two separate command trees. 
 
@@ -494,14 +477,14 @@ make_command_stream (int (*get_next_byte) (void *),
 
 				  if (commands.head == NULL)
 				  {
-					  commands.head = node;
-					  commands.tail = node;
-					  commands.cursor = node;
+					  commands->head = node;
+					  commands->tail = node;
+					  commands->cursor = node;
 				  }
 				  else
 				  {
-					  commands.tail->next = node;
-					  commands.tail = node;
+					  commands->tail->next = node;
+					  commands->tail = node;
 				  }
 				  prevType = 4;
 			  }
@@ -518,8 +501,6 @@ make_command_stream (int (*get_next_byte) (void *),
 			  charType = charaCase(c);
 			  // keep whatever prevType it is. 
 		  }
-
-		  // TODO check if last characters form a command. 
 
 		  lineNum++; //increase the line counter for errors sake.
 	  }
@@ -539,91 +520,86 @@ make_command_stream (int (*get_next_byte) (void *),
 		  }
 		  charType = charaCase(c); // which should be 4 or 7.
 	  }
-	  else if (charType == 7) // EOF
-	  {
-		  if (prevType == 1)
-		  {
-			  // TODO print some error. 
-		  }
-
-		  enum command_type opType = SEQUENCE_COMMAND;
-		  int opPrec = opPrecedence(opType);
-		  // pop all operators with >= precedence off operator stack.
-		  while (opIndex > 0) 
-		  {
-			  // check the top of the operator stack. 
-			  enum command_type topOp = opStack[opIndex - 1];
-			  // if (, stop. 
-			  if (topOp == SUBSHELL_COMMAND)
-				  break;
-			  int topPrec = opPrecedence(topOp);
-			  // if top has lower precedence, stop. 
-			  if (topPrec < opPrec) // every operator should have higher precedence. 
-				  break;
-			  // here, top has a precedence >= current operator. 
-			  opIndex--; // pop the operator off the stack. 
-
-			  // pop two commands off the stack. 
-			  if (cmdIndex < 2)
-			  {
-				  // TODO print some syntax error. 
-			  }
-			  cmdIndex--;
-			  struct command *cmdb = cmdStack[cmdIndex];
-			  cmdIndex--;
-			  struct command *cmda = cmdStack[cmdIndex];
-
-			  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
-			  newCmd->type = topOp;
-			  newCmd->status = -1;
-			  newCmd->input = NULL;
-			  newCmd->output = NULL;
-			  // TODO parse from buffer the words. are there words for this? o.O
-			  newCmd->u.command[0] = cmda;
-			  newCmd->u.command[1] = cmdb;
-
-			  // place the command on the stack. 
-			  if (cmdIndex >= cmdStackSize)
-			  {
-				  cmdStackSize *= 2;
-				  cmdStack = (struct command**) realloc(cmdStack, cmdStackSize*sizeof(struct command*));
-			  }
-			  cmdStack[cmdIndex] = newCmd;
-			  cmdIndex++;
-		  }
-
-		  if (opIndex > 0)
-		  {
-			  // TODO print out some error. Too many operators. 
-		  }
-		  if (cmdIndex >= 1)
-		  {
-			  // TODO print out some error. Too many commands. 
-		  }
-
-		  commandNode node;
-		  node.command = cmdStack[0];
-		  node.next = nullptr;
-
-		  if (commands.head == NULL)
-		  {
-			  commands.head = node;
-			  commands.tail = node;
-			  commands.cursor = node;
-		  }
-		  else
-		  {
-			  commands.tail->next = node;
-			  commands.tail = node;
-		  }
-		  break;
-	  }
 	  else // unknown character
 	  {
 		  // TODO print some error. 
 	  }	
   }
 
+  if (prevType == 1)
+  {
+	  // TODO print some error. 
+  }
+
+  enum command_type opType = SEQUENCE_COMMAND;
+  int opPrec = opPrecedence(opType);
+  // pop all operators with >= precedence off operator stack.
+  while (opIndex > 0)
+  {
+	  // check the top of the operator stack. 
+	  enum command_type topOp = opStack[opIndex - 1];
+	  // if (, stop. 
+	  if (topOp == SUBSHELL_COMMAND)
+		  break;
+	  int topPrec = opPrecedence(topOp);
+	  // if top has lower precedence, stop. 
+	  if (topPrec < opPrec) // every operator should have higher precedence. 
+		  break;
+	  // here, top has a precedence >= current operator. 
+	  opIndex--; // pop the operator off the stack. 
+
+	  // pop two commands off the stack. 
+	  if (cmdIndex < 2)
+	  {
+		  // TODO print some syntax error. 
+	  }
+	  cmdIndex--;
+	  struct command *cmdb = cmdStack[cmdIndex];
+	  cmdIndex--;
+	  struct command *cmda = cmdStack[cmdIndex];
+
+	  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
+	  newCmd->type = topOp;
+	  newCmd->status = -1;
+	  newCmd->input = NULL;
+	  newCmd->output = NULL;
+	  newCmd->u.command[0] = cmda;
+	  newCmd->u.command[1] = cmdb;
+
+	  // place the command on the stack. 
+	  // no need to check indexes, as two commands just popped. 
+	  cmdStack[cmdIndex] = newCmd;
+	  cmdIndex++;
+  }
+
+  // c == EOF
+  if (opIndex > 0)
+  {
+	  // TODO print out some error. Too many operators. 
+  }
+  if (cmdIndex > 1)
+  {
+	  // TODO print out some error. Too many commands. 
+  }
+
+  if (cmdIndex == 1)
+  {
+	  commandNode node;
+	  node.command = cmdStack[0];
+	  node.next = nullptr;
+
+	  if (commands.head == NULL)
+	  {
+		  commands->head = node;
+		  commands->tail = node;
+		  commands->cursor = node;
+	  }
+	  else
+	  {
+		  commands->tail->next = node;
+		  commands->tail = node;
+	  }
+  }
   return commands;
 }
 
