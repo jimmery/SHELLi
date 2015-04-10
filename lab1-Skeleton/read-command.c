@@ -102,9 +102,9 @@ make_command_stream (int (*get_next_byte) (void *),
   int cmdIndex = 0;
 
   // maintains the buffer for the string for commands, etc.
-  int bufSize = 10; // TODO change?
+  int bufSize = 100; // TODO change?
   char* buffer = (char*)malloc(bufSize * sizeof(char));
-  int bufIndex;
+  int bufIndex = 0;
   int numWords = 0;
 
   //initializes the command_stream_t that will be returned. 
@@ -120,6 +120,8 @@ make_command_stream (int (*get_next_byte) (void *),
   // 1 (for previous is an operator), and 4 (for it's time to start a new command tree)
   while (c != EOF) // TODO check the end condition. 
   { 
+	printf("%c\t", c);
+	printf("Chartype is %d\n", charType);
 	  if (charType == 0) // letters, numbers, etc.
 	  {
 		  buffer[bufIndex] = c;
