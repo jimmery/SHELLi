@@ -445,7 +445,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  {
 				  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
 			  }
-			  if (cmdIndex >= 1)
+			  if (cmdIndex > 1)
 			  {
 				  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
 			  }
@@ -454,7 +454,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  {
 				  //END OF COMMAND TREE.
 
-				  struct commandNode *node;
+				  struct commandNode *node = (struct commandNode*) malloc(sizeof(struct commandNode));
 				  node->command = cmdStack[0];
 				  node->next = NULL;
 
@@ -470,6 +470,7 @@ make_command_stream (int (*get_next_byte) (void *),
 					  commands->tail = node;
 				  }
 				  prevType = 4;
+				  cmdIndex = 0; // stack is reset. 
 				  c = get_next_byte(get_next_byte_argument);
 			  }
 			  else
@@ -506,12 +507,12 @@ make_command_stream (int (*get_next_byte) (void *),
 					  {
 						  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
 					  }
-					  if (cmdIndex >= 1)
+					  if (cmdIndex > 1)
 					  {
 						  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
 					  }
 
-					  struct commandNode *node;
+					  struct commandNode *node = (struct commandNode*) malloc(sizeof(struct commandNode));
 					  node->command = cmdStack[0];
 					  node->next = NULL;
 
@@ -527,6 +528,7 @@ make_command_stream (int (*get_next_byte) (void *),
 						  commands->tail = node;
 					  }
 					  prevType = 4;
+					  cmdIndex = 0; // stack is reset. 
 					  c = get_next_byte(get_next_byte_argument);
 				  }
 				  else
@@ -613,7 +615,7 @@ make_command_stream (int (*get_next_byte) (void *),
   {
 	  error(1, 1, "Syntax Error in Line %d: Operators without enough operands", lineNum);
   }
-  if (cmdIndex >= 1)
+  if (cmdIndex > 1)
   {
 	  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
   }
