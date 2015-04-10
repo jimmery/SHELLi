@@ -142,7 +142,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  c = get_next_byte(get_next_byte_argument);
 			  charType = charaCase(c);
 		  }
-	      struct command *cmd = (struct command*) malloc(sizeof(struct command*));
+	      struct command *cmd = (struct command*) malloc(sizeof(struct command));
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
 		  // TODO parse from buffer the words. currently a test: 
@@ -202,7 +202,6 @@ make_command_stream (int (*get_next_byte) (void *),
 			  // TODO check other cases for errors?
 		  }
 
-		  charType = charaCase(c);
 		  int opPrec = opPrecedence(opType);
 
 		  // pop all operators with >= precedence off operator stack. 
@@ -230,7 +229,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  cmdIndex--;
 			  struct command *cmda = cmdStack[cmdIndex];
 
-			  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
+			  struct command *newCmd = (struct command *)malloc(sizeof(struct command));
 			  newCmd->type = topOp;
 			  newCmd->status = -1;
 			  newCmd->input = NULL;
@@ -296,7 +295,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  cmdIndex--;
 				  struct command *cmda = cmdStack[cmdIndex];
 
-				  newCmd = (struct command *)malloc(sizeof(struct command*));
+				  newCmd = (struct command *)malloc(sizeof(struct command));
 				  newCmd->type = topOp;
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
@@ -321,7 +320,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  }
 			  cmdIndex--;
 			  struct command *cmd_in = cmdStack[cmdIndex];
-			  struct command *cmd_out = (struct command *)malloc(sizeof(struct command*));
+			  struct command *cmd_out = (struct command *)malloc(sizeof(struct command));
 			  cmd_out->type = SUBSHELL_COMMAND;
 			  cmd_out->status = -1;
 			  // TODO input and output to be determined if the next char is < or >
@@ -336,7 +335,6 @@ make_command_stream (int (*get_next_byte) (void *),
 		  }
 
 		  c = get_next_byte(get_next_byte_argument);
-		  charType = charaCase(c);
 	  }
 	  else if (charType == 3) // redirection
 	  {
@@ -434,7 +432,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  cmdIndex--;
 				  struct command *cmda = cmdStack[cmdIndex];
 
-				  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
+				  struct command *newCmd = (struct command *)malloc(sizeof(struct command));
 				  newCmd->type = topOp;
 				  newCmd->status = -1;
 				  newCmd->input = NULL;
@@ -499,16 +497,13 @@ make_command_stream (int (*get_next_byte) (void *),
 			  // then we just advance the character. 
 			  // in the case that the top operation is not a sequence command, 
 			  // we treat the newline as an empty space and maintain prevType. 
-			  c = get_next_byte(get_next_byte_argument);
-			  charType = charaCase(c);
 		  }
 		  else // prevType == 4;
 		  {
 			  // just advance the counter. treat as empty space. 
-			  c = get_next_byte(get_next_byte_argument);
-			  charType = charaCase(c);
 			  // keep whatever prevType it is. 
 		  }
+		  c = get_next_byte(get_next_byte_argument);
 
 		  lineNum++; //increase the line counter for errors sake.
 	  }
@@ -516,7 +511,6 @@ make_command_stream (int (*get_next_byte) (void *),
 	  {
 		  // just advance to the next character. 
 		  c = get_next_byte(get_next_byte_argument);
-		  charType = charaCase(c);
 		  // keep the same prevType
 	  }
 	  else if (charType == 6) // comment. 
@@ -526,12 +520,12 @@ make_command_stream (int (*get_next_byte) (void *),
 		  {
 			  c = get_next_byte(get_next_byte_argument);
 		  }
-		  charType = charaCase(c); // which should be 4 or 7.
 	  }
 	  else // unknown character
 	  {
 		  // TODO print some error. 
 	  }	
+	  charType = charaCase(c);
   }
 
   if (prevType == 1)
@@ -566,7 +560,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  cmdIndex--;
 	  struct command *cmda = cmdStack[cmdIndex];
 
-	  struct command *newCmd = (struct command *)malloc(sizeof(struct command*));
+	  struct command *newCmd = (struct command *)malloc(sizeof(struct command));
 	  newCmd->type = topOp;
 	  newCmd->status = -1;
 	  newCmd->input = NULL;
@@ -592,7 +586,7 @@ make_command_stream (int (*get_next_byte) (void *),
 
   if (cmdIndex == 1)
   {
-	  struct commandNode *node;
+	  struct commandNode *node = (struct commandNode*) malloc(sizeof(struct commandNode));
 	  node->command = cmdStack[0];
 	  node->next = NULL;
 
