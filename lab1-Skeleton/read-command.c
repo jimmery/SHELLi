@@ -127,6 +127,8 @@ make_command_stream (int (*get_next_byte) (void *),
 		  c = get_next_byte(get_next_byte_argument);
 		  charType = charaCase(c);
 
+		  int prevBufCase = 5;
+
 		  // reads in everything up until an operator or the end of a line/file
 		  while (charType == 0 || charType == 5)
 		  {
@@ -137,13 +139,40 @@ make_command_stream (int (*get_next_byte) (void *),
 			  }
 			  buffer[bufIndex] = c;
 			  bufIndex++;
+
+			  if (prevBufCase == 5 && charType == 0)
+			  {
+				  numWords++;
+			  }
+
+			  prevBufCase = charType;
 			  c = get_next_byte(get_next_byte_argument);
 			  charType = charaCase(c);
 		  }
+		  // TODO parse from buffer the words. currently a test: 
+		  //if (bufIndex >= bufSize)
+		  //{
+			 // bufSize *= 2;
+			 // buffer = (char*)realloc(buffer, bufSize * sizeof(char));
+		  //}
+		  //buffer[bufIndex] = 0;
+		  //bufIndex++;
+
+		  //char** cmd_words
+
+		  //int i = 0; 
+		  //for (; i < bufIndex; i++)
+		  //{
+
+		  //}
+
 	      struct command *cmd = (struct command*) malloc(sizeof(struct command));
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
-		  // TODO parse from buffer the words. currently a test: 
+
+
+
+
 		  cmd->u.word = (char**)malloc(1*sizeof(char*));
 		  cmd->u.word[0] = "hello";
 
@@ -650,6 +679,7 @@ read_command_stream (command_stream_t s)
 {
 	if (s->cursor == NULL)
 		return NULL;
+	struct commandNode* temp = s->cursor;
 	s->cursor = s->cursor->next;
-	return 0;
+	return temp->command;
 }
