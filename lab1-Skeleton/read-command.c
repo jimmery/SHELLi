@@ -122,11 +122,6 @@ make_command_stream (int (*get_next_byte) (void *),
   { 
 	  if (charType == 0) // letters, numbers, etc.
 	  {
-		  buffer[bufIndex] = c;
-		  bufIndex++;
-		  c = get_next_byte(get_next_byte_argument);
-		  charType = charaCase(c);
-
 		  int prevBufCase = 5;
 
 		  // reads in everything up until an operator or the end of a line/file
@@ -163,7 +158,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
 
-		  cmd->u.word = (char**)malloc(numWords*sizeof(char*));
+		  cmd->u.word = (char**)malloc((1+numWords)*sizeof(char*));
 
 		  // creates a buffer to which the words array can point into. 
 		  char* cmd_words = (char*)malloc(bufIndex*sizeof(char));
@@ -187,7 +182,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  i++;
 			  }
 		  }
-
+		  cmd->u.word[numWords] = '\0';
 		  // place the command on the stack. 
 		  if (cmdIndex >= cmdStackSize)
 		  {
