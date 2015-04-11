@@ -568,6 +568,10 @@ make_command_stream (int (*get_next_byte) (void *),
 					  c = c_next; // prevType remains 1.
 				  }
 			  }
+			  else
+			  {
+				c = get_next_byte(get_next_byte_argument);
+			  }
 		  }
 		  else // prevType == 4;
 		  {
