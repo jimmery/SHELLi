@@ -188,14 +188,6 @@ make_command_stream (int (*get_next_byte) (void *),
 			  }
 		  }
 
-
-	      struct command *cmd = (struct command*) malloc(sizeof(struct command));
-		  cmd->type = SIMPLE_COMMAND;
-		  cmd->status = -1;
-
-		  cmd->u.word = (char**)malloc(1*sizeof(char*));
-		  cmd->u.word[0] = "hello";
-
 		  // place the command on the stack. 
 		  if (cmdIndex >= cmdStackSize)
 		  {
