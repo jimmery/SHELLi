@@ -278,14 +278,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		  opStack[opIndex] = opType;
 		  opIndex++;
 
-		  if (c == ';')
-		  {
-			  prevType = 2; 
-		  }
-		  else
-		  {
-		      prevType = 1;
-		  }
+		  prevType = 1;
 	  }
 	  else if (charType == 2)
 	  {
