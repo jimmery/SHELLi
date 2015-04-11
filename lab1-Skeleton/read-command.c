@@ -479,7 +479,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				  error(1, 1, "Syntax Error in Line %d: Operands without enough operators", lineNum);
 			  }
 			  char c_next = get_next_byte(get_next_byte_argument);
-			  if (c_next == '\n')
+			  if (c_next == '\n' || c_next == EOF)
 			  {
 				  //END OF COMMAND TREE.
 
@@ -528,7 +528,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  {
 				  char c_next = get_next_byte(get_next_byte_argument);
 
-				  if (c_next == '\n')
+				  if (c_next == '\n' || c_next == EOF)
 				  {
 					  // END OF COMMAND TREE. 
 					  opIndex--; // remove the SEQUENCE_COMMAND
