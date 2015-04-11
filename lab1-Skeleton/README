@@ -1,4 +1,57 @@
-This is a skeleton for CS 111 Lab 1.
+Aravind Vadali 404272660
+Jeffrey Jiang 904255069
 
-Replace this README file with notes on your implementation.
-Mentions any special features or limitations.
+Lab 1a:
+Algorithm for creating command trees:
+Maintain two stacks (one for operators, one for commands)
+switch (COMMAND_TYPE):
+  case SIMPLE_COMMAND:
+    push SIMPLE_COMMAND onto commandStack
+    
+  case BINARY_OPERATOR:
+    pop all operators off operatorStack until reached a lower-precedence operator or OPEN_PAREN
+    for each operator
+      pop two commands off commandStack
+      combine two commands and operator into single command
+      push combined command into operatorStack
+  
+  case OPEN_PAREN:
+    push SUBSHELL_COMMAND onto operator stack
+    
+  case CLOSE_PAREN:
+    pop all operators until OPEN_PAREN
+    for each operator
+      pop two commands off commandStack
+      combine two commands and operator into single command
+      push combined command into operatorStack
+      
+  case REDIRECT:
+    if preceded by a command:
+      add an input or output (for < or > respectively) to top of commandStack
+  
+  case WHITESPACE:
+    advance to next character
+  
+  case #:
+    advance character into next NEWLINE or EOF
+  
+  case NEWLINE:
+    if preceded by a command:
+      if only one in a row:
+        acts as semicolon
+      else if two in a row:
+        end the command tree
+    else if preceded by a semicolon:
+      if there are two newlines in a row
+        treat the semicolon as removed
+      else:
+        treat as WHITESPACE
+    
+  case EOF:
+    pop all operators
+    for each operator
+      pop two commands off commandStack
+      combine two commands and operator into single command
+      push combined command into operatorStack
+      
+Meets spec description to the best of our knowledge.
