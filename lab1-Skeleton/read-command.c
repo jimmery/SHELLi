@@ -149,29 +149,49 @@ make_command_stream (int (*get_next_byte) (void *),
 			  c = get_next_byte(get_next_byte_argument);
 			  charType = charaCase(c);
 		  }
-		  // TODO parse from buffer the words. currently a test: 
-		  //if (bufIndex >= bufSize)
-		  //{
-			 // bufSize *= 2;
-			 // buffer = (char*)realloc(buffer, bufSize * sizeof(char));
-		  //}
-		  //buffer[bufIndex] = 0;
-		  //bufIndex++;
 
-		  //char** cmd_words
+		  // parses the words from the buffer. 
+		  if (bufIndex >= bufSize)
+		  {
+			  bufSize *= 2;
+			  buffer = (char*)realloc(buffer, bufSize * sizeof(char));
+		  }
+		  buffer[bufIndex] = 0;
+		  bufIndex++;
 
-		  //int i = 0; 
-		  //for (; i < bufIndex; i++)
-		  //{
+		  struct command *cmd = (struct command*) malloc(sizeof(struct command));
+		  cmd->type = SIMPLE_COMMAND;
+		  cmd->status = -1;
 
-		  //}
+		  cmd->u.word = (char**)malloc(numWords*sizeof(char*));
+
+		  // creates a buffer to which the words array can point into. 
+		  char* cmd_words = (char*)malloc(bufIndex*sizeof(char));
+
+		  int i = 0;
+		  int wordNum = 0;
+		  while(i < bufIndex - 1) // the last char is a null byte. 
+		  {
+			  // points to the first character of non-space character. 
+			  cmd->u.word[wordNum] = &(cmd_words[i]);
+			  wordNum++;
+			  while (charaCase(buffer[i]) == 0)
+			  {
+				  cmd_words[i] = buffer[i];
+				  i++;
+			  }
+			  // removes all space characters into that of null bytes. 
+			  while (charaCase(buffer[i]) == 5)
+			  {
+				  cmd_words[i] = 0;
+				  i++;
+			  }
+		  }
+
 
 	      struct command *cmd = (struct command*) malloc(sizeof(struct command));
 		  cmd->type = SIMPLE_COMMAND;
 		  cmd->status = -1;
-
-
-
 
 		  cmd->u.word = (char**)malloc(1*sizeof(char*));
 		  cmd->u.word[0] = "hello";
@@ -398,7 +418,11 @@ make_command_stream (int (*get_next_byte) (void *),
 			  charType = charaCase(c);
 		  }
 
-		  // TODO trim the buffer of ending whitespace?
+		  // trims the buffer of ending whitespaces
+		  while (charaCase(buffer[bufIndex - 1]) == 5)
+		  {
+			  bufIndex--; 
+		  }
 
 		  if (ch == '<') // check previous input is NULL?
 		  {
