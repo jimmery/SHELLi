@@ -191,8 +191,9 @@ make_command_stream (int (*get_next_byte) (void *),
 	  else if (charType == 1) //binary operator
 	  {
 		  // we cannot have a binary operator without a command in front. 
-		  if (prevType != 0)
+		  if (!(prevType == 0 || (c == ';' && prevType == 2)))
 		  {
+			printf("PrevType is %d\tC is %c\n", prevType, c);
 			  error(1, 1, "Syntax Error in Line %d: Expected binary operator preceded by operand", lineNum);
 		  }
 		  enum command_type opType;
@@ -278,7 +279,14 @@ make_command_stream (int (*get_next_byte) (void *),
 		  opStack[opIndex] = opType;
 		  opIndex++;
 
-		  prevType = 1;
+		  if (c == ';')
+		  {
+			  prevType = 2; 
+		  }
+		  else
+		  {
+		      prevType = 1;
+		  }
 	  }
 	  else if (charType == 2)
 	  {
