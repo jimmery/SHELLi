@@ -4,23 +4,30 @@
 #include "command-internals.h"
 
 #include <error.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
+static function definitions, etc.  */
 
 
 // TODO. hey. i have no idea why this matters right now. pls help. 
 int
-command_status (command_t c)
+command_status(command_t c)
 {
-  return c->status;
+	return c->status;
 }
 
 void
 execute(command_t c)
 {
 	switch (c->type) {
-	case SIMPLE_COMMAND: 
+	case SIMPLE_COMMAND:
+	{
 		// setup redirections, if necessary. 
 		if (c->input != NULL)
 		{
@@ -41,16 +48,18 @@ execute(command_t c)
 		}
 
 		// actually run the command. 
-		if (strcmp(c->u.word[0], "exec"))
+		if (strcmp(c->u.word[0], "exec") == 0)
 			execvp(c->u.word[1], &c->u.word[1]);
 		else
 			execvp(c->u.word[0], &c->u.word[0]);
 		break;
+	}
 	case AND_COMMAND:
+	{
 		int p = fork();
 		if (p == 0) // child. left hand command first. 
 		{
-			execute(c->u.commands[0]);
+			execute(c->u.command[0]);
 		}
 		else
 		{
@@ -63,51 +72,56 @@ execute(command_t c)
 			// otherwise we should not run anything. 
 			if (exitStatus == 0)
 			{
-				execute(c->u.commands[1]);
+				execute(c->u.command[1]);
 			}
 		}
 		break;
+	}
 	case OR_COMMAND:
+	{
 		int p = fork();
 		if (p == 0) // child. left hand command first. 
 		{
-			execute(c->u.commands[0]);
+			execute(c->u.command[0]);
 		}
 		else
 		{
 			int status;  // used as an argument for waitpid. 
 			waitpid(p, &status, 0); // 0 means blocking wait. 
-			int exitStatus = WEXIT_STATUS(status); // extracts exit status 
+			int exitStatus = WEXITSTATUS(status); // extracts exit status 
 
 			// the first command returned unsuccessfully.
 			// thus, we should run the next command.
 			// if the first command is successful, the second is unneccessary. 
 			if (exitStatus != 0)
 			{
-				execute(c->u.commands[1]);
+				execute(c->u.command[1]);
 			}
 		}
 		break;
+	}
 	case SEQUENCE_COMMAND:
+	{
 		int p = fork();
 		if (p == 0) // child. left hand command first. 
 		{
-			execute(c->u.commands[0]);
+			execute(c->u.command[0]);
 		}
 		else
 		{
 			int status;  // used as an argument for waitpid. 
 			waitpid(p, &status, 0); // 0 means blocking wait. 
-			int exitStatus = WEXIT_STATUS(status); // extracts exit status 
+			//int exitStatus = WEXIT_STATUS(status); // extracts exit status 
 
 			// runs the second command after the first one is complete. 
-			execute(c->u.commands[1]);
+			execute(c->u.command[1]);
 		}
 		break;
+	}
 	case PIPE_COMMAND:
 
 		// TODO I THINK THIS ONE IS REALLY MESSED UP. JUST COPYING FROM DISC NOTES FOR NOW. 
-
+	{
 		int fd[2];
 		pipe(fd);
 		int firstPid = fork();
@@ -115,7 +129,7 @@ execute(command_t c)
 		{
 			close(fd[1]); // close the unused write end. 
 			dup2(fd[0], 0); // setting up a read pipe.
-			execute(c->u.commands[1]);
+			execute(c->u.command[1]);
 		}
 		else
 		{
@@ -137,8 +151,10 @@ execute(command_t c)
 			}
 		}
 		break;
-	case SUBSEQUENCE_COMMAND:
-		command_t* innerCmd = c->u.subshell_command;
+	}
+	case SUBSHELL_COMMAND:
+	{
+		command_t innerCmd = c->u.subshell_command;
 		if (c->input != NULL)
 		{
 			innerCmd->input = c->input;
@@ -149,26 +165,27 @@ execute(command_t c)
 		}
 		execute(innerCmd);
 		break;
+	}
 	default:
 		// TODO: idk lol. 
 	}
 }
 
 void
-execute_command (command_t c, bool time_travel)
+execute_command(command_t c, bool time_travel)
 {
-  /* FIXME: Replace this with your implementation.  You may need to
-     add auxiliary functions and otherwise modify the source code.
-     You can also use external functions defined in the GNU C Library.  */
-  error (1, 0, "command execution not yet implemented");
+	/* FIXME: Replace this with your implementation.  You may need to
+	add auxiliary functions and otherwise modify the source code.
+	You can also use external functions defined in the GNU C Library.  */
+	//error (1, 0, "command execution not yet implemented");
 
-  int p = fork();
-  if (p == 0) // child
-  {
-	  execute(c);
-  }
-  else
-  {
-	  // TODO figure out what happens after all the commands have been executed. 
-  }
+	int p = fork();
+	if (p == 0) // child
+	{
+		execute(c);
+	}
+	else
+	{
+		// TODO figure out what happens after all the commands have been executed. 
+	}
 }
