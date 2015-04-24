@@ -1,0 +1,229 @@
+4/17/2015
+Week 3. 
+
+Lab 1B. 
+Command execution. 
+
+("should be easier than 1a, obviously")
+
+cases
+1. simple command. 
+  storage of commands: in word. 
+  cmd -> u.word = { "echo", "a", 0 }
+
+  notice: why not use cmd -> u.word = { "echo a" }? 
+    reason: 1b. 
+
+  execute ( cmd->u.word[0], cmd->u.word );
+
+#include <unistd.h>?
+int main() {
+  char *cmd[] = { "echo", "a", 0 };
+  execvp(cmd[0], cmd); // prints out a. 
+  printf("b"); // only runs if execvp fails. 
+  return 127;
+}
+
+Three cases for execvp: 
+  a. execute successfully. echo a. status is 0. 
+  b. execute unsuccessfully. cat a.txt, but a.txt does not exist. status is 1-126. 
+  c. fail. command does not exist or command cannot be executed. status is 127. 
+execvp exits the main process if cases a or b. 
+returns control to main process if case c. 
+
+echo a
+echo $? // will print out 0. returns the status of the previous function. 
+
+For lab 1b, we assume there are no failures. ALL functions are valid. 
+Therefore, execvp will always exit the process. 
+
+=> if we have 5 commands, we must have 5 processes. 
+=> we need to fork multiple processes. 
+
+example: 
+echo a; echo b // SEQUENCE_COMMAND, two commands => two processes. 
+
+int main() {
+  int p = fork(); 
+  if (p == 0) {
+    char *a[] = { "echo", "a", 0 };
+    execvp(a[0], a);
+  } else {
+    char *a[] = { "echo", "b", 0 );
+    execvp(a[0], a);
+  }
+}
+
+no synchronization required for SEQUENCE_COMMANDS. 
+
+what about echo a && echo b? 
+there is synchornization! if echo a fails, we do not want echo b to execute at all!
+therefore, we want to wait for echo a to finish. 
+
+#include <sys/wait.h>
+int main() {
+  int p = fork(); 
+  if (p == 0) {
+    char *a[] = { "echo", "a", 0 };
+    execvp(a[0], a);
+  } else {
+    int status; // will be used as argument for waitpid.
+    waitpid(p, &status, 0); // 0 means blocking wait. 
+    // this waits for the child process to exit. 
+    // status is a 32 bit integer that contains information of multiple statuses. 
+    // exit status is stored in least significant 8 bits. (use a mask or mod to get this status)
+    // this function is already provided for us. WEXITSTATUS(status);
+    int exitStatus = WEXIT_STATUS(status);
+    if ( exitStatus == 0 ) {
+      char *a[] = { "echo", "b", 0 };
+      execvp(a[0], a);
+    }
+  }
+}
+
+or command should be relatively similar. 
+  however, if OR succeeds, then it exits. the second argument is not necessary. 
+  if the OR fails, then we must execute the second command. 
+pipe operator is the most difficult operator to work with. 
+go to OH on monday, if it is not clear after discussion. 
+
+execute(cmd)
+{
+  switch(cmd->type) {
+    case SIMPLE_COMMAND: 
+      execute_simple(); // something. 
+      break;
+    case AND_COMMAND: 
+      // add recursive definitions to the commands on left and right. 
+    ...
+  }
+}
+
+and now we have redirection. 
+echo abc > a.txt
+execvp does not understand redirection. 
+cmd->u.word = {"echo", "abc", 0}, cmd->u.output = {"a.txt"}. 
+
+without redirection, the command would print to stdout. 
+stdin/stdout are just file descriptors. 
+0 - stdin. 
+1 - stdout.
+2 - stderr.
+
+
+#include <unistd.h> // for dup2
+#include <fcntl.h> //for open
+int main() {
+  int fd = open( "a.txt", O_CREAT | O_TRUNC | O_WRONLY, 0644);
+					// O_CREAT creates a new file named a.txt, even if there is a.txt there. 
+					// O_TRUNC zero outs all bytes in file. 
+					// O_WRONLY write only. 
+					// 0644 permissions (in this case, user r/w, g/o r only)
+  if ( fd < 0 ) return 1;
+  if ( dup2(fd, 1) < 0 ) return -1; 	// close(1), dup(fd); 
+					// closes standard output and duplicates fd into 1. 
+					// whatever is written to stdout goes into fd.
+  char *a[] = { "echo", "abc", 0 };
+  execvp(a[0], a);
+}
+
+input redirect is similar. 
+
+example: "exec echo a"
+simple command. 
+you CANNOT call execvp on this, it will NOT work. 
+if ( simple command start with exec )
+  execvp( word[1], &word[1] );
+
+SEQUENCE_COMMAND, wait for the left to finish, then execute the right. 
+  no need to test exit statuses though. 
+
+SUBSHELL_COMMAND: just look inside. 
+example: (cat < a.txt) > b.txt
+  no nested subshells. 
+  case SUBSHELL: 
+    cmd->u.subshell_command->output = cmd->output;
+    execute(cmd->u.subshell_command);
+    // CAREFUL. in this example, we need to set u.subshell_command.output = {"b.txt"}
+    
+PIPE_COMMAND: (the most difficult!)
+example: cat foo.txt | sort
+
+unidirectional. 
+parent process
+  /       \
+child1<==>child2
+ which direction?
+
+between: 
+1. which pair of processes should we place the pipe? 
+2. what is the direction? 
+
+#include <stdlib.h>
+#include <unistd.h>
+
+int main() {
+  int fd[2];
+  pipe(fd); 
+  int firstPid = fork(); // execute command on the right. 
+  if (firstPid == 0 ) {
+    close(fd[1]); // close unused write end. 
+    dup2(fd[0], 0); // we want to read from the pipe, instead of stdin.
+    char *a[] = { "sort", 0 };
+    execvp(a[0], a);
+  } else {
+    int secondPid = fork(); 
+    if (secondPid == 0 ) { // execute the left command. 
+      close(fd[0]); // close unused read end. 
+      dup2(fd[1], 1);
+      char *a[] = {"cat", "foo.txt", 0 };
+      execvp(a[0], a);
+    } else {
+      close(fd[0]);
+      close(fd[1]);
+      int status; 
+      waitpid(-1, &status, 0); // waits for one child process to finish. 
+      waitpid(-1, &status, 0); // waits for another child process to finish. 
+    }
+  }
+}
+
+drawing: 
+
+            ------------------------------------  
+cat foo.txt  => fd[1]                   fd[0] =>  sort
+            ------------------------------------
+pipe() creates two file descriptors with the following convention: 
+fd[0] is used for reading. 
+fd[1] is used for writing. 
+
+what does the close(fd[0]) and close(fd[1]) statements mean? 
+  this establishes the direction. 
+  again, we have: 
+      parent
+      /    \
+secondPid  firstPid
+fd[0] = 5  fd[0] = 5  
+fd[1] = 8  fd[1] = 8
+
+because we closed a single end of the pipe in child processes. 
+Therefore, these processes have to be on one end of the pipe. 
+the parent closes both, meaning it is not a part of the pipe. 
+
+now, whichever pipe we close determines which end we are on. 
+if we close the read end, we should be writing to the pipe. 
+if we close the write end, we should be reading to the pipe. 
+it is the programmer's responsibility to properly close pipe ends. 
+
+somehow there are apparently no synchronization issues.
+i think it has something to do with the system call to pipe()
+  it automatically waits for the input to finish. 
+
+
+
+
+
+
+
+
+

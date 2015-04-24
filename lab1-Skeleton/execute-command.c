@@ -74,7 +74,20 @@ execute(command_t c)
 			// otherwise we should not run anything. 
 			if (exitStatus == 0)
 			{
-				execute(c->u.command[1]);
+				int p2 = fork();
+				if (p2 == 0)
+				{
+					execute(c->u.command[1]);
+				}
+				else // TODO is this necessary? currently the need for this is the exit status. 
+				{
+					int status;  // used as an argument for waitpid. 
+					waitpid(p, &status, 0); // 0 means blocking wait. 
+					int exitStatus = WEXITSTATUS(status); // extracts exit status 
+
+					c->status = exitStatus;
+					exit(exitStatus);
+				}	
 			}
 			else
 			{
@@ -101,7 +114,20 @@ execute(command_t c)
 			// if the first command is successful, the second is unneccessary. 
 			if (exitStatus != 0)
 			{
-				execute(c->u.command[1]);
+				int p2 = fork();
+				if (p2 == 0)
+				{
+					execute(c->u.command[1]);
+				}
+				else // TODO is this necessary? currently the need for this is the exit status. 
+				{
+					int status;  // used as an argument for waitpid. 
+					waitpid(p, &status, 0); // 0 means blocking wait. 
+					int exitStatus = WEXITSTATUS(status); // extracts exit status 
+
+					c->status = exitStatus;
+					exit(exitStatus);
+				}
 			}
 			else
 			{
@@ -152,12 +178,12 @@ execute(command_t c)
 			}
 			else
 			{
-				// is this else statement even necessary? 
 				close(fd[0]);
 				close(fd[1]);
 				int status;
 				waitpid(-1, &status, 0); // waits for one child process to finish.
 				waitpid(-1, &status, 0); // waits for the other child process to finish. 
+				exit(status); // TODO change?
 			}
 		}
 		break;
