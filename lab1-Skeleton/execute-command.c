@@ -22,13 +22,14 @@ command_status(command_t c)
 	return c->status;
 }
 
+// returns the exit status. 
 void
 execute(command_t c)
 {
-	switch (c->type) {
+	switch (c->type) 
+	{
 	case SIMPLE_COMMAND:
 	{
-		// setup redirections, if necessary. 
 		if (c->input != NULL)
 		{
 			int fin = open(c->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
@@ -52,6 +53,7 @@ execute(command_t c)
 			execvp(c->u.word[1], &c->u.word[1]);
 		else
 			execvp(c->u.word[0], &c->u.word[0]);
+
 		break;
 	}
 	case AND_COMMAND:
@@ -65,7 +67,7 @@ execute(command_t c)
 		{
 			int status;  // used as an argument for waitpid. 
 			waitpid(p, &status, 0); // 0 means blocking wait. 
-			int exitStatus = WEXIT_STATUS(status); // extracts exit status 
+			int exitStatus = WEXITSTATUS(status); // extracts exit status 
 
 			// the first command returned successfully.
 			// thus, we should run the next command.
@@ -73,6 +75,10 @@ execute(command_t c)
 			if (exitStatus == 0)
 			{
 				execute(c->u.command[1]);
+			}
+			else
+			{
+				c->status = exitStatus; // the and statement ran unsuccessfully. 
 			}
 		}
 		break;
@@ -97,6 +103,10 @@ execute(command_t c)
 			{
 				execute(c->u.command[1]);
 			}
+			else
+			{
+				c->status = 0; // the || statement ran successfully. 
+			}
 		}
 		break;
 	}
@@ -111,7 +121,7 @@ execute(command_t c)
 		{
 			int status;  // used as an argument for waitpid. 
 			waitpid(p, &status, 0); // 0 means blocking wait. 
-			//int exitStatus = WEXIT_STATUS(status); // extracts exit status 
+			//int exitStatus = WEXITSTATUS(status); // extracts exit status 
 
 			// runs the second command after the first one is complete. 
 			execute(c->u.command[1]);
@@ -166,7 +176,8 @@ execute(command_t c)
 		execute(innerCmd);
 		break;
 	}
-	default:
+	
+	//default:
 		// TODO: idk lol. 
 	}
 }
@@ -186,6 +197,8 @@ execute_command(command_t c, bool time_travel)
 	}
 	else
 	{
-		// TODO figure out what happens after all the commands have been executed. 
+		// just waits for the child to finish. 
+		int status;
+		waitpid(p, &status, 0);
 	}
 }
