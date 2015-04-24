@@ -55,3 +55,63 @@ switch (COMMAND_TYPE):
       push combined command into operatorStack
       
 Meets spec description to the best of our knowledge.
+
+Lab 1b: 
+Make a new recursive function called execute() that takes a command as input. 
+Breaks commands into their multiple types. 
+switch (c->type): 
+  case SIMPLE_COMMAND:
+    check for input/output that must be dealt with. 
+    check for exec as first word: 
+      run command, using word array. 
+  case AND_COMMAND:
+    fork a process. 
+    in child:   run the left command. 
+    in parent:  check exit status of left command. 
+      if successful, fork a new process. 
+        check exit status of right command. 
+        determine status of AND_COMMAND from right command. 
+      else
+        AND_COMMAND failed. 
+        exit the process. 
+  case OR_COMMAND: 
+    fork a process. 
+    in child:   run the left command. 
+    in parent:  check exit status of left command. 
+      if unsuccessful, fork a new process. 
+        check exit status of right command. 
+        determine status of OR_COMMAND from right command. 
+      else
+        OR_COMMAND succeeded. 
+        exit the process. 
+  case SEQUENCE_COMMAND:
+    fork a process. 
+    in child:   run the left command. 
+    in parent:  
+      fork a new process. 
+        check exit status of right command. 
+        determine status of SEQUENCE_COMMAND from right command. 
+  case SUBSHELL_COMMAND:
+    fork a new process. 
+    in child:   check/setup redirections. 
+      run inner command(s). 
+    in parent: 
+      check exit status of inner command. 
+      copies exit status into own exit status. 
+  case PIPE_COMMAND: 
+    create a pipe. 
+    fork a new process. 
+    in child1: 
+      setup the read end. 
+      execute the right/reading command. 
+    in parent1: 
+      fork a new process. 
+      in child2: 
+        setup the write end. 
+        execute the writing/left command. 
+      in parent2: 
+        close the pipe and wait for commands to finish. 
+        set exit statuses of the two subcommands. 
+        determine its own exit status. 
+        
+also made some minor changes to 1a to account for some bugs (which were, in general, nonconsequential)
