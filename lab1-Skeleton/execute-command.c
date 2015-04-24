@@ -229,9 +229,10 @@ execute(command_t c)
 			//	innerCmd->output = c->output;
 			//}
 
+			// setup redirection. 
 			if (c->input != NULL)
 			{
-				int fin = open(c->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+				int fin = open(c->input, O_RDONLY, 0644);
 				if (fin < 0)
 					// somehow return an error. 
 					error(1, 1, "File not found");
