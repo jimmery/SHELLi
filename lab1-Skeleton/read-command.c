@@ -361,7 +361,7 @@ make_command_stream (int (*get_next_byte) (void *),
 
 			  // place the command on the stack. 
 			  // should never overflow, as one command was just popped off. 
-			  cmdStack[cmdIndex] = newCmd;
+			  cmdStack[cmdIndex] = cmd_out;
 			  cmdIndex++;
 			  prevType = 0; // after a close paren, it acts as if we just created a new command.
 		  }
