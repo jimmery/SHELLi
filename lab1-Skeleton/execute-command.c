@@ -23,90 +23,110 @@ command_status(command_t c)
 }
 
 // returns the exit status. 
-int
+void
 execute(command_t c)
 {
 	switch (c->type) 
 	{
 	case SIMPLE_COMMAND:
 	{
-		int p = fork();
-		if (p == 0)
+		if (c->input != NULL)
 		{
-			// set up redirection, if necessary. 
-			if (c->input != NULL)
-			{
-				int fin = open(c->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
-				if (fin < 0)
-					// somehow return an error. 
-					error(1, 1, "File not found");
-				if (dup2(fin, 0) < 0) // closes stdin and duplicates fin into point to where stdin was. 
-					error(1, 1, "Error making input stream");
-			}
-			if (c->output != NULL)
-			{
-				int fout = open(c->output, O_CREAT | O_TRUNC | O_WRONLY, 0644);
-				if (fout < 0)
-					error(1, 1, "File not found");
-				if (dup2(fout, 1) < 0) // closes stdout and duplicates fout point to where stdout was. 
-					error(1, 1, "Error making output stream");
-			}
-
-			// actually run the command. 
-			if (strcmp(c->u.word[0], "exec") == 0)
-				execvp(c->u.word[1], &c->u.word[1]);
-			else
-				execvp(c->u.word[0], &c->u.word[0]);
+			int fin = open(c->input, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+			if (fin < 0)
+				// somehow return an error. 
+				error(1, 1, "File not found");
+			if (dup2(fin, 0) < 0) // closes stdin and duplicates fin into point to where stdin was. 
+				error(1, 1, "Error making input stream");
 		}
-		else // parent, sets up the status. 
+		if (c->output != NULL)
 		{
-			int status;  // used as an argument for waitpid. 
-			waitpid(p, &status, 0); // 0 means blocking wait. 
-			int exitStatus = WEXITSTATUS(status); // extracts exit status 
-
-			c->status = exitStatus;
-			return exitStatus;
+			int fout = open(c->output, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+			if (fout < 0)
+				error(1, 1, "File not found");
+			if (dup2(fout, 1) < 0) // closes stdout and duplicates fout point to where stdout was. 
+				error(1, 1, "Error making output stream");
 		}
+
+		// actually run the command. 
+		if (strcmp(c->u.word[0], "exec") == 0)
+			execvp(c->u.word[1], &c->u.word[1]);
+		else
+			execvp(c->u.word[0], &c->u.word[0]);
 
 		break;
 	}
 	case AND_COMMAND:
 	{
-		int left = execute(c->u.command[0]);
-		if (left == 0)
+		int p = fork();
+		if (p == 0) // child. left hand command first. 
 		{
-			int right = execute(c->u.command[1]);
-			c->status = right;
-			return right;
+			execute(c->u.command[0]);
 		}
 		else
 		{
-			c->status = left;
-			return left;
+			int status;  // used as an argument for waitpid. 
+			waitpid(p, &status, 0); // 0 means blocking wait. 
+			int exitStatus = WEXITSTATUS(status); // extracts exit status 
+
+			// the first command returned successfully.
+			// thus, we should run the next command.
+			// otherwise we should not run anything. 
+			if (exitStatus == 0)
+			{
+				execute(c->u.command[1]);
+			}
+			else
+			{
+				c->status = exitStatus; // the and statement ran unsuccessfully. 
+			}
 		}
 		break;
 	}
 	case OR_COMMAND:
 	{
-		int left = execute(c->u.command[0]);
-		if (left != 0)
+		int p = fork();
+		if (p == 0) // child. left hand command first. 
 		{
-			int right = execute(c->u.command[1]);
-			c->status = right;
-			return right;
+			execute(c->u.command[0]);
 		}
 		else
 		{
-			c->status = left; // which equals 0.
-			return left;
+			int status;  // used as an argument for waitpid. 
+			waitpid(p, &status, 0); // 0 means blocking wait. 
+			int exitStatus = WEXITSTATUS(status); // extracts exit status 
+
+			// the first command returned unsuccessfully.
+			// thus, we should run the next command.
+			// if the first command is successful, the second is unneccessary. 
+			if (exitStatus != 0)
+			{
+				execute(c->u.command[1]);
+			}
+			else
+			{
+				c->status = 0; // the || statement ran successfully. 
+			}
 		}
 		break;
 	}
 	case SEQUENCE_COMMAND:
 	{
-		int left = execute(c->u.command[0]);
-		int right = execute(c->u.command[1]);
-		return right;
+		int p = fork();
+		if (p == 0) // child. left hand command first. 
+		{
+			execute(c->u.command[0]);
+		}
+		else
+		{
+			int status;  // used as an argument for waitpid. 
+			waitpid(p, &status, 0); // 0 means blocking wait. 
+			//int exitStatus = WEXITSTATUS(status); // extracts exit status 
+
+			// runs the second command after the first one is complete. 
+			execute(c->u.command[1]);
+		}
+		break;
 	}
 	case PIPE_COMMAND:
 
@@ -138,7 +158,6 @@ execute(command_t c)
 				int status;
 				waitpid(-1, &status, 0); // waits for one child process to finish.
 				waitpid(-1, &status, 0); // waits for the other child process to finish. 
-				return 0; // TODO change
 			}
 		}
 		break;
@@ -154,7 +173,7 @@ execute(command_t c)
 		{
 			innerCmd->output = c->output;
 		}
-		return execute(innerCmd);
+		execute(innerCmd);
 		break;
 	}
 	
