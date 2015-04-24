@@ -178,7 +178,7 @@ make_command_stream (int (*get_next_byte) (void *),
 			  // removes all space characters into that of null bytes. 
 			  while (charaCase(buffer[i]) == 5)
 			  {
-				  cmd_words[i] = 0;
+				  cmd_words[i] = '\0';
 				  i++;
 			  }
 		  }
