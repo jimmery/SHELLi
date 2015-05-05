@@ -163,7 +163,7 @@ executeNoDependencies( Queue *no_dependencies )
     pid_t pid = fork();
     if (pid == 0)
     {
-      execute_command(i->commdan, true); // written in 1B. 
+      execute_command(i->command, true); // written in 1B. 
       exit(0);
     }
     else

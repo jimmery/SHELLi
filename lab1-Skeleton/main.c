@@ -19,7 +19,7 @@ typedef struct {
 typedef struct {
 	GraphNode* graphnode;
 	// TODO implement read list and write list. 
-	GraphNode* next; // should be initialized to NULL
+	ListNode* next; // should be initialized to NULL
 } ListNode;
 
 typedef struct {
@@ -78,12 +78,48 @@ static void
 executeNoDependencies(ListNode *no_dependencies) 
 {
 	// TODO implementation here.
+	ListNode *current_node = no_dependencies;
+	while (current_node != NULL)
+	{
+		GraphNode *i = current_node.graphnode;
+		pid_t pid = fork();
+		if (pid == 0)
+		{
+			execute_command(i->command, true);
+			exit(0);
+		}
+		else
+		{
+			i->pid = pid;
+		}
+		current_node = current_node->next;
+	}
 }
 
 static void
 executeDependencies(ListNode *dependencies) 
 {
 	// TODO implementation here. 
+	ListNode *current_node = dependencies;
+	while (current_node != NULL)
+	{
+		int status;
+		GraphNode *i = current_node.graphnode;
+		// TODO check for befores and stuff. 
+		// not currently too sure what to do. 
+
+		pid_t pid = fork();
+		if (pid == 0)
+		{
+			execute_command(i->command, true);
+			exit(0);
+		}
+		else
+		{
+			i->pid = pid;
+		}
+		current_node = current_node->next;
+	}
 }
 
 static int
