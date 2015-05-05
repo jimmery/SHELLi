@@ -1,0 +1,212 @@
+OH: 2:30-4:30. 
+
+1c. parallelism
+data hazards. 
+
+Dependencies: 
+RAW (read after write)
+WAR (write after read)
+WAW (write after write)
+
+RAW. e.g. 
+echo hello > a.txt
+cat a.txt
+
+WAR e.g. 
+cat a.txt
+echo hello > a.txt
+
+WAW e.g.
+echo hello > a.txt
+echo abc > a.txt
+
+How do we create these dependencies? 
+Motivation: Parallelism. 
+We do not need parallelism inside a single command tree. 
+We want to find dependencies between two different command trees. 
+
+For each command tree, we want to create a read list and write list for each command tree. 
+
+intersect. 
+bool haveDependency( cmdTree1, cmdTree2 )
+  if ( A->WL intersect B->RL != empty )
+    RAW dependency. 
+  if ( A->WL intersect B->WL != empty )
+    WAW dependency. 
+  if ( A->RL intersect B->WL != empty )
+    WAR dependency. 
+
+RL includes: 
+  input fields from redirection. <
+  all the words after the first word and without dashes in front 
+WL includes: 
+  output fields from redirection. >
+
+what about cat? 
+e.g.
+  echo a.txt
+  cat a.txt
+echo a.txt does not read a.txt, should not create a dependency. 
+
+Assume that there is dependency whenever there is more than one word in the word. 
+(for simplicity)
+  no real problems, just lose some parallelism. 
+  ignore options. (do not store anything that starts with - into the real list)
+
+We have to modify main.c such that we create a dependency graph before we execute. 
+
+typedef struct {
+  command_t command; // root command tree. 
+  struct GraphNode **before; // list of all GraphNodes before it that it must wait
+				// on to finish in order to execute this command. 
+  pid_t pid; // initialize to -1.
+		// if it is equal to -1, it has not spawned a child node. 
+} GraphNode;
+
+typedef struct {
+  Queue *no_dependencies; // implemented as a linked list of GraphNodes. 
+  Queue *dependencies;
+} DependencyGraph;
+
+e.g.
+A   B
+ \ / \
+  C   E
+   \ 
+    D
+
+A->before = {}
+B->before = {}
+C->before = {A, B}
+D->before = {B}
+D->before = {C}
+
+dg->no_dependencies = {A, B}
+dg->dependencies = {C, D, E}
+
+With these two data structures, we can fully represent a dependency graph. 
+We can immediately spawn all the processes for all the no dependencies without waiting.
+
+Generating RL and WL for each command tree. 
+processCommand(command_t cmd)
+switch(cmd->type)
+  case SIMPLE_COMMAND:
+    store cmd->input into RL
+    store cmd->u.word[1] (filter out options) into RL
+    store cmd->output into WL
+    break;
+  case SUBSHELL_COMMAND:
+    store cmd->input into RL
+    store cmd->output into WL
+    processCommand(cmd->u.subshell_command);
+    break;
+  default: // all of these are binary commands. 
+    processCommand(cmd->u.command[0]);
+    processCommand(cmd->u.command[1]);
+
+where do we store readlist and writelist? 
+  create a linked list with a new struct ListNode.
+  ListNodes contain: 
+    GraphNode
+    RL
+    WL
+
+Build Dependency Graph. (pseudocode)
+for each command tree k in the command stream: 
+  // 1. generate RL and WL for command tree k.
+  // figure out how to store RL and WL. 
+  processCommand(k->command); 
+
+  // 2. check if there exists dependency between k and all previous command trees. 
+  create a new GraphNode to store command tree k. 
+  gnode->command = k->command;
+  create a ListNode {gNode, RL, WL} ln;
+  loop through previous command trees l: 
+    // check dependencies between ln and l
+    if (haveDependencies(ln, l)): 
+      gnode->before = l->GraphNode;
+  
+  //3. add commands into DependencyGraph structure
+  if "before" is NULL: 
+    add GraphNode to DependencyGraph's no_dependencies field;
+  else: 
+    add GraphNode to DependencyGraph's dependencies field;
+
+main.c change: 
+//skeleton
+command_t last_command = NULL; 
+command_t command;
+
+// new  
+if ( time_travel )
+{
+  DependencyGraph *graph = createGraph(command_stream_t stream); 
+  int finalStatus = 0;
+  finalStatus = executeGraph(graph);
+  return finalStatus
+}
+else
+{
+  ... // move skeleton code into else.
+}
+
+int executeGraph(DependencyGraph* graph)
+{
+  executeNoDependencies(graph->no_dependencies);
+  executeDependencies(graph->dependencies);
+}
+
+executeNoDependencies( Queue *no_dependencies )
+{
+  for (GraphNode i : no_dependencies) // using Java-like syntax. 
+  {
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+      execute_command(i->commdan, true); // written in 1B. 
+      exit(0);
+    }
+    else
+    {
+      i->pid = pid;
+    }
+  }
+}
+
+
+Consider an "after list" implementation. 
+  apparently includes more code. 
+  much more complexity. 
+  not necessary for basic parallelism. 
+return to this graph as an example: 
+A   B
+ \ / \
+  C   E
+   \ 
+    D
+
+Without implementing an "after list," there is some serialization. 
+  C will wait on A, B. Until this wait is complete, it will not check D, E. 
+
+executeDependencies(dependencies)
+{
+  for ( GraphNode i: dependencies )
+  {
+    int status;
+    for ( GraphNode j : i->before )
+      waitpid(j->pid, NULL, status, 0);
+    pid_t pid = fork();
+    if ( pid == 0 )
+    {
+      execute_command(i->command);
+      exit(0);
+    }
+    else
+    {
+      i->pid = pid;
+    }
+  }
+}
+
+
+
