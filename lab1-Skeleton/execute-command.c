@@ -32,15 +32,15 @@ struct graph_node {
 };
 
 struct file_node {
-	char *file;
+	char *file; // contains the file name of the file. 
 	FileNode next;
 };
 
 struct list_node {
 	GraphNode graphnode;
 	// TODO implement read list and write list. 
-	FileNode readlist; // contains the head read file. 
-	FileNode writelist; // contains the head write file.
+	FileNode readlist; // contains the head read file linked list. 
+	FileNode writelist; // contains the head write file linked list.
 	ListNode next; // should be initialized to NULL
 };
 
@@ -58,28 +58,140 @@ haveDependency()
 }
 
 void
-processCommand(command_t cmd)
+processCommand(command_t cmd, ListNode node)
 {
 	switch (cmd->type)
 	{
 		case SIMPLE_COMMAND:
-		// TODO implement. 
+			// add input into read list, if there is an input. 
+			if (cmd->input != NULL)
+			{
+				// initialize a new FileNode
+				FileNode newInput = (FileNode)malloc(sizeof(struct file_node));
+				newInput->file = cmd->input;
+				newInput->next = NULL;
+				
+				// search for the next empty location in the linked list. 
+				FileNode file = node->readlist;
+				while (file != NULL)
+				{
+					file = file->next;
+				}
+				file = newInput;
+			}
+
+			// add all non-option words into read list for simplified parallelism
+			int i = 1;
+			for (; cmd->u.word[i] != '\0'; i++)
+			{
+				// filters out all options. 
+				if (cmd->u.word[i][0] != '-')
+				{
+					// initialize a new FileNode
+					FileNode newInput = (FileNode)malloc(sizeof(struct file_node));
+					newInput->file = cmd->u.word[i];
+					newInput->next = NULL;
+
+					// search for the next empty location in the linked list. 
+					FileNode file = node->readlist;
+					while (file != NULL)
+					{
+						file = file->next;
+					}
+					file = newInput;
+				}
+			}
+
+			// add output into write list, if there is an output. 
+			if (cmd->output != NULL)
+			{
+				// initialize a new FileNode
+				FileNode newOutput = (FileNode)malloc(sizeof(struct file_node));
+				newOutput->file = cmd->output;
+				newOutput->next = NULL;
+
+				// search for the next empty location in the linked list. 
+				FileNode file = node->writelist;
+				while (file != NULL)
+				{
+					file = file->next;
+				}
+				file = newOutput;
+			}
+
 			break;
 		case SUBSHELL_COMMAND:
-		//TODO: implement.
-			processCommand(cmd->u.subshell_command);
+			// add input into read list, if there is an input. 
+			if (cmd->input != NULL)
+			{
+				// initialize a new FileNode
+				FileNode newInput = (FileNode)malloc(sizeof(struct file_node));
+				newInput->file = cmd->input;
+				newInput->next = NULL;
+
+				// search for the next empty location in the linked list. 
+				FileNode file = node->readlist;
+				while (file != NULL)
+				{
+					file = file->next;
+				}
+				file = newInput;
+			}
+
+			// add output into write list, if there is an output. 
+			if (cmd->output != NULL)
+			{
+				// initialize a new FileNode
+				FileNode newOutput = (FileNode)malloc(sizeof(struct file_node));
+				newOutput->file = cmd->output;
+				newOutput->next = NULL;
+
+				// search for the next empty location in the linked list. 
+				FileNode file = node->writelist;
+				while (file != NULL)
+				{
+					file = file->next;
+				}
+				file = newOutput;
+			}
+			processCommand(cmd->u.subshell_command, node);
 			break;
 		default:
-			processCommand(cmd->u.command[0]);
-			processCommand(cmd->u.command[1]);
+			processCommand(cmd->u.command[0], node);
+			processCommand(cmd->u.command[1], node);
 	}
 }
 
 DependencyGraph
 createGraph(command_stream_t stream)
 {
-	return NULL;
-	//TODO: implementation here
+	DependencyGraph graph = (DependencyGraph)malloc(sizeof(struct dependency_graph));
+	command_t command = read_command_stream(stream);
+	for (; command != NULL; command = read_command_stream(stream))
+	{
+		// create a new GraphNode to hold the new command. 
+		GraphNode g_node = (GraphNode)malloc(sizeof(struct graph_node));
+		g_node->command = command;
+		g_node->before = NULL; // TODO implement how to change this in part 2. 
+		g_node->pid = -1;
+
+		// create a new ListNode to hold the new GraphNode and its RL, WL. 
+		ListNode l_node = (ListNode)malloc(sizeof(struct list_node));
+		l_node->graphnode = g_node;
+		l_node->readlist = NULL;
+		l_node->writelist = NULL;
+		l_node->next = NULL;
+
+		// fill in the readlist and writelist of l_node. 
+		processCommand(command, l_node);
+
+		// 2. Figure out the before list for g_node. 
+		// TODO implementation
+
+		// 3. Add l_node to graph accordingly. 
+		// TODO implementation depends on part 2. 
+	}
+	return graph;
 }
 
 static void
@@ -135,6 +247,7 @@ executeGraph(DependencyGraph graph)
 {
 	executeNoDependencies(graph->no_dependencies);
 	executeDependencies(graph->dependencies);
+	return 0; // TODO change?
 }
 
 // returns the exit status. 
