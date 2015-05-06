@@ -26,6 +26,8 @@ struct graph_node {
 	command_t command; // root of command tree;
 	GraphNode *before;	// list of all GraphNodes before it that it must wait
 						// on to finish in order to execute this command. 
+	int count;
+	int size;
 	// consider having an after list as well, in the future. 
 	int pid;	// initialize this to -1. 
 				// if it is equal to -1, it has not yet spawned a child node. 
@@ -199,13 +201,17 @@ DependencyGraph
 createGraph(command_stream_t stream)
 {
 	DependencyGraph graph = (DependencyGraph)malloc(sizeof(struct dependency_graph));
+	ListNode head = NULL;
+
 	command_t command = read_command_stream(stream);
 	for (; command != NULL; command = read_command_stream(stream))
 	{
 		// create a new GraphNode to hold the new command. 
 		GraphNode g_node = (GraphNode)malloc(sizeof(struct graph_node));
 		g_node->command = command;
-		g_node->before = NULL; // TODO implement how to change this in part 2. 
+		g_node->size = 10;
+		g_node->before = (GraphNode)malloc(g_node->size*sizeof(struct graph_node)); 
+		g_node->count = 0;
 		g_node->pid = -1;
 
 		// create a new ListNode to hold the new GraphNode and its RL, WL. 
@@ -220,6 +226,21 @@ createGraph(command_stream_t stream)
 
 		// 2. Figure out the before list for g_node. 
 		// TODO implementation
+		ListNode iter = head;
+		while (iter != NULL)
+		{
+			if (haveDependency(l_node, iter))
+			{
+				g_node->before[g_node->count] = l_node->graphnode;
+				g_node->count++;
+				if (g_node->count >= g_node->size)
+				{
+					g_node->size *= 2;
+					g_node->before = (GraphNode)realloc(g_node->before, g_node->size*sizeof(struct graph_node));
+				}
+			}
+			iter = iter->next;
+		}
 
 		// 3. Add l_node to graph accordingly. 
 		// TODO implementation depends on part 2. 
