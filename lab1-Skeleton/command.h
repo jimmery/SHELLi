@@ -4,6 +4,10 @@
 
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
+typedef struct graph_node *GraphNode;
+typedef struct file_node *FileNode;
+typedef struct list_node *ListNode;
+typedef struct dependency_graph *DependencyGraph;
 
 /* Create a command stream from GETBYTE and ARG.  A reader of
    the command stream will invoke GETBYTE (ARG) to get the next byte.

@@ -8,7 +8,20 @@
 #include "command.h"
 #include "command-internals.h"
 
+static char const *program_name;
+static char const *script_name;
 
+static void
+usage(void)
+{
+	error(1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
+}
+
+static int
+get_next_byte(void *stream)
+{
+	return getc(stream);
+}
 
 int
 main (int argc, char **argv)
@@ -45,7 +58,7 @@ main (int argc, char **argv)
   // TODO check if this is correct?
   if (time_travel)
   {
-	  DependencyGraph *graph = createGraph(command_stream_t stream);
+	  DependencyGraph graph = createGraph(command_stream);
 	  int finalStatus = 0;
 	  finalStatus = executeGraph(graph);
 	  return finalStatus;

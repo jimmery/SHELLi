@@ -22,50 +22,42 @@ command_status(command_t c)
 	return c->status;
 }
 
-typedef struct {
+struct graph_node {
 	command_t command; // root of command tree;
-	struct GraphNode **before;	// list of all GraphNodes before it that it must wait
-								// on to finish in order to execute this command. 
+	GraphNode *before;	// list of all GraphNodes before it that it must wait
+						// on to finish in order to execute this command. 
 	// consider having an after list as well, in the future. 
 	int pid;	// initialize this to -1. 
-			// if it is equal to -1, it has not yet spawned a child node. 
-} GraphNode;
+				// if it is equal to -1, it has not yet spawned a child node. 
+};
 
-typedef struct {
-	GraphNode* graphnode;
+struct file_node {
+	char *file;
+	FileNode next;
+};
+
+struct list_node {
+	GraphNode graphnode;
 	// TODO implement read list and write list. 
-	struct ListNode* next; // should be initialized to NULL
-} ListNode;
+	FileNode readlist; // contains the head read file. 
+	FileNode writelist; // contains the head write file.
+	ListNode next; // should be initialized to NULL
+};
 
-typedef struct {
+struct dependency_graph {
 	// TODO implementation here. 
 	// probably just maintain a linked list of GraphNodes somehow. 
-	ListNode* no_dependencies; // head of the nodes that have no dependencies
-	ListNode* dependencies; // head of the nodes that have dependencies. 
-} DependencyGraph;
+	ListNode no_dependencies; // head of the nodes that have no dependencies
+	ListNode dependencies; // head of the nodes that have dependencies. 
+};
 
-static char const *program_name;
-static char const *script_name;
-
-static void
-usage (void)
-{
-  error (1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
-}
-
-static int
-get_next_byte (void *stream)
-{
-  return getc (stream);
-}
-
-static bool
+bool
 haveDependency()
 {
 	// TODO implement.
 }
 
-static void
+void
 processCommand(command_t cmd)
 {
 	switch (cmd->type)
@@ -83,20 +75,21 @@ processCommand(command_t cmd)
 	}
 }
 
-static DependencyGraph*
+DependencyGraph
 createGraph(command_stream_t stream)
 {
+	return NULL;
 	//TODO: implementation here
 }
 
 static void
-executeNoDependencies(ListNode *no_dependencies)
+executeNoDependencies(ListNode no_dependencies)
 {
 	//TODO: implementation here
-	ListNode *currentNode = no_dependencies;
+	ListNode currentNode = no_dependencies;
 	while (currentNode != NULL)
 	{
-		GraphNode *i = currentNode->graphnode;
+		GraphNode i = currentNode->graphnode;
 		int pid = fork();
 		if (pid == 0)
 		{
@@ -115,11 +108,11 @@ static void
 executeDependencies(ListNode *dependencies) 
 {
 	//TODO: implementation here
-	ListNode *currentNode = dependencies;
+	ListNode currentNode = dependencies;
 	while (currentNode != NULL) 
 	{
 		int status;
-		GraphNode *i = currentNode->graphnode;
+		GraphNode i = currentNode->graphnode;
 		//TODO: check for befores and stuffs?
 		//not clue what to do. here goes...something
 
@@ -137,8 +130,8 @@ executeDependencies(ListNode *dependencies)
 	}
 }
 
-static int
-executeGraph(DependencyGraph *graph)
+int
+executeGraph(DependencyGraph graph)
 {
 	executeNoDependencies(graph->no_dependencies);
 	executeDependencies(graph->dependencies);
@@ -395,7 +388,6 @@ execute_command(command_t c, bool time_travel)
 	/* FIXME: Replace this with your implementation.  You may need to
 	add auxiliary functions and otherwise modify the source code.
 	You can also use external functions defined in the GNU C Library.  */
-	//error (1, 0, "command execution not yet implemented");
 
 	int p = fork();
 	if (p == 0) // child
