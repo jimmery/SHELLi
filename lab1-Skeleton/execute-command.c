@@ -38,23 +38,56 @@ struct file_node {
 
 struct list_node {
 	GraphNode graphnode;
-	// TODO implement read list and write list. 
 	FileNode readlist; // contains the head read file linked list. 
 	FileNode writelist; // contains the head write file linked list.
 	ListNode next; // should be initialized to NULL
 };
 
 struct dependency_graph {
-	// TODO implementation here. 
 	// probably just maintain a linked list of GraphNodes somehow. 
 	ListNode no_dependencies; // head of the nodes that have no dependencies
 	ListNode dependencies; // head of the nodes that have dependencies. 
 };
 
 bool
-haveDependency()
+haveDependency(ListNode A, ListNode B)
 {
-	// TODO implement.
+	FileNode nodeA = A->writelist;
+	for (; nodeA != NULL; nodeA = nodeA->next)
+	{
+		FileNode nodeB = B->writelist;
+		for (; nodeB != NULL; nodeB = nodeB->next)
+		{
+			// WAW dependency
+			if (strcmp(nodeA->file, nodeB->file) == 0)
+			{
+				return true;
+			}
+		}
+		nodeB = B->readlist;
+		for (; nodeB != NULL; nodeB = nodeB->next)
+		{
+			// WAR dependency
+			if (strcmp(nodeA->file, nodeB->file) == 0)
+			{
+				return true;
+			}
+		}
+	}
+	FileNode nodeA = A->readlist;
+	for (; nodeA != NULL; nodeA = nodeA->next)
+	{
+		FileNode nodeB = B->writelist;
+		for (; nodeB != NULL; nodeB = nodeB->next)
+		{
+			// RAW dependency
+			if (strcmp(nodeA->file, nodeB->file) == 0)
+			{
+				return true;
+			}
+		}
+	}
+	return false; // no dependency
 }
 
 void
@@ -217,7 +250,7 @@ executeNoDependencies(ListNode no_dependencies)
 }
 
 static void
-executeDependencies(ListNode *dependencies) 
+executeDependencies(ListNode dependencies) 
 {
 	//TODO: implementation here
 	ListNode currentNode = dependencies;
