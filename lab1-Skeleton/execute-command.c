@@ -226,7 +226,7 @@ createGraph(command_stream_t stream)
 
 		// 2. Figure out the before list for g_node. 
 		// TODO implementation
-		ListNode iter = head;
+		ListNode iter = graph->dependencies;
 		while (iter != NULL)
 		{
 			if (haveDependency(l_node, iter))
@@ -241,9 +241,53 @@ createGraph(command_stream_t stream)
 			}
 			iter = iter->next;
 		}
+		iter = graph->no_dependencies;
+		while (iter != NULL) {
+			if (haveDependency(l_node, iter))
+			{
+				g_node->before[g_node->count] = l_node->graphnode;
+				g_node->count++;
+				if (g_node->count >= g_node->size)
+				{
+					g_node->size *= 2;
+					g_node->before = (GraphNode)realloc(g_node->before, g_node->size*sizeof(struct graph_node));
+				}
+			}
+			iter = iter->next;
+			
+		}
 
 		// 3. Add l_node to graph accordingly. 
 		// TODO implementation depends on part 2. 
+		if (g_node->before == NULL) {
+			iter = graph->no_dependencies;
+			if (iter == NULL) {
+				no_dependencies = (ListNode)malloc(sizeof(struct list_node));
+				no_dependencies->graphnode = g_node;
+			}
+			else {
+				while (iter->next != NULL) {
+					iter = iter->next;
+				}
+				iter->next = (ListNode)malloc(sizeof(struct list_node));
+				iter->next->graphnode = g_node;
+			}
+		}
+		else {
+			iter = graph->dependencies;
+			if (iter == NULL) {
+				no_dependencies = (ListNode)malloc(sizeof(struct list_node));
+				no_dependencies->graphnode = g_node;
+			}
+			else {
+				while (iter->next != NULL) {
+					iter = iter->next;
+				}
+				iter->next = (ListNode)malloc(sizeof(struct list_node));
+				iter->next->graphnode = g_node;
+			}
+
+		}
 	}
 	return graph;
 }
