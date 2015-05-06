@@ -74,7 +74,7 @@ haveDependency(ListNode A, ListNode B)
 			}
 		}
 	}
-	FileNode nodeA = A->readlist;
+	nodeA = A->readlist;
 	for (; nodeA != NULL; nodeA = nodeA->next)
 	{
 		FileNode nodeB = B->writelist;
@@ -343,7 +343,7 @@ execute(command_t c)
 				{
 					execute(c->u.command[1]);
 				}
-				else // TODO is this necessary? currently the need for this is the exit status. 
+				else 
 				{
 					waitpid(p2, &status, 0); // 0 means blocking wait. 
 					exitStatus = WEXITSTATUS(status); // extracts exit status 
@@ -531,9 +531,11 @@ execute(command_t c)
 void
 execute_command(command_t c, bool time_travel)
 {
-	/* FIXME: Replace this with your implementation.  You may need to
-	add auxiliary functions and otherwise modify the source code.
-	You can also use external functions defined in the GNU C Library.  */
+	// currently our implementation does not use time_travel boolean for anything. 
+	// i'm assuming that this variable is mainly for the purposes of parallelizing within
+	// a single command tree, if set true. 
+	// our current implementation, as dictated by the TA, does not include parallelization
+	// within a command tree. 
 
 	int p = fork();
 	if (p == 0) // child
