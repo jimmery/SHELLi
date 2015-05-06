@@ -6,20 +6,21 @@
 #include <stdio.h>
 
 #include "command.h"
+#include "command-internals.h"
 
 typedef struct {
 	command_t command; // root of command tree;
 	struct GraphNode **before;	// list of all GraphNodes before it that it must wait
 								// on to finish in order to execute this command. 
 	// consider having an after list as well, in the future. 
-	pid_t;	// initialize this to -1. 
+	int pid;	// initialize this to -1. 
 			// if it is equal to -1, it has not yet spawned a child node. 
 } GraphNode;
 
 typedef struct {
 	GraphNode* graphnode;
 	// TODO implement read list and write list. 
-	ListNode* next; // should be initialized to NULL
+	struct ListNode* next; // should be initialized to NULL
 } ListNode;
 
 typedef struct {
@@ -51,7 +52,7 @@ haveDependency()
 }
 
 static void
-processCommand(command_t cmd)
+processCommand(command_t *cmd)
 {
 	switch (cmd->type)
 	{
@@ -82,7 +83,7 @@ executeNoDependencies(ListNode *no_dependencies)
 	while (current_node != NULL)
 	{
 		GraphNode *i = current_node.graphnode;
-		pid_t pid = fork();
+		int pid = fork();
 		if (pid == 0)
 		{
 			execute_command(i->command, true);
@@ -104,11 +105,11 @@ executeDependencies(ListNode *dependencies)
 	while (current_node != NULL)
 	{
 		int status;
-		GraphNode *i = current_node.graphnode;
+		GraphNode *i = current_node->graphnode;
 		// TODO check for befores and stuff. 
 		// not currently too sure what to do. 
 
-		pid_t pid = fork();
+		int pid = fork();
 		if (pid == 0)
 		{
 			execute_command(i->command, true);
