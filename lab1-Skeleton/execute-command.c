@@ -78,8 +78,19 @@ processCommand(command_t cmd)
 DependencyGraph
 createGraph(command_stream_t stream)
 {
-	return NULL;
-	//TODO: implementation here
+	GraphNode *gNode = (GraphNode *)malloc(sizeof(GraphNode));
+	gNode->command = stream->head;
+	while(gNode->command != NULL) {
+		stream->head = stream->head->next;
+		ListNode *ln = (ListNode*)malloc(sizeof(ListNode));
+		ln->graphnode = gNode;
+		ln->readlist = RL; //Need to get RL
+		ln->writeList = WL; //Need to get WL
+		ListNode *l = cmdTrees->head; //Need to get list of previous command trees. Assuming here it is a linked list of trees
+		if (haveDependencies(ln, l)) {
+			gNode->before = l->graphnode;
+		}
+	}
 }
 
 static void
