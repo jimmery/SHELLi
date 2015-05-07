@@ -108,11 +108,18 @@ processCommand(command_t cmd, ListNode node)
 				
 				// search for the next empty location in the linked list. 
 				FileNode file = node->readlist;
-				while (file != NULL)
+				if (file == NULL)
 				{
-					file = file->next;
+					node->readlist = newInput;
 				}
-				file = newInput;
+				else
+				{
+					while (file->next != NULL)
+					{
+						file = file->next;
+					}
+					file->next = newInput;
+				}
 			}
 
 			// add all non-option words into read list for simplified parallelism
@@ -129,11 +136,18 @@ processCommand(command_t cmd, ListNode node)
 
 					// search for the next empty location in the linked list. 
 					FileNode file = node->readlist;
-					while (file != NULL)
+					if (file == NULL)
 					{
-						file = file->next;
+						node->readlist = newInput;
 					}
-					file = newInput;
+					else
+					{
+						while (file->next != NULL)
+						{
+							file = file->next;
+						}
+						file->next = newInput;
+					}
 				}
 			}
 
@@ -147,11 +161,18 @@ processCommand(command_t cmd, ListNode node)
 
 				// search for the next empty location in the linked list. 
 				FileNode file = node->writelist;
-				while (file != NULL)
+				if (file == NULL)
 				{
-					file = file->next;
+					node->writelist = newOutput;
 				}
-				file = newOutput;
+				else
+				{
+					while (file->next != NULL)
+					{
+						file = file->next;
+					}
+					file->next = newOutput;
+				}
 			}
 
 			break;
@@ -166,11 +187,18 @@ processCommand(command_t cmd, ListNode node)
 
 				// search for the next empty location in the linked list. 
 				FileNode file = node->readlist;
-				while (file != NULL)
+				if (file == NULL)
 				{
-					file = file->next;
+					node->readlist = newInput;
 				}
-				file = newInput;
+				else
+				{
+					while (file->next != NULL)
+					{
+						file = file->next;
+					}
+					file->next = newInput;
+				}
 			}
 
 			// add output into write list, if there is an output. 
@@ -183,11 +211,18 @@ processCommand(command_t cmd, ListNode node)
 
 				// search for the next empty location in the linked list. 
 				FileNode file = node->writelist;
-				while (file != NULL)
+				if (file == NULL)
 				{
-					file = file->next;
+					node->writelist = newOutput;
 				}
-				file = newOutput;
+				else
+				{
+					while (file->next != NULL)
+					{
+						file = file->next;
+					}
+					file->next = newOutput;
+				}
 			}
 			processCommand(cmd->u.subshell_command, node);
 			break;
@@ -201,7 +236,8 @@ DependencyGraph
 createGraph(command_stream_t stream)
 {
 	DependencyGraph graph = (DependencyGraph)malloc(sizeof(struct dependency_graph));
-	ListNode head = NULL;
+	graph->dependencies = NULL;
+	graph->no_dependencies = NULL;
 
 	command_t command = read_command_stream(stream);
 	for (; command != NULL; command = read_command_stream(stream))
@@ -210,7 +246,7 @@ createGraph(command_stream_t stream)
 		GraphNode g_node = (GraphNode)malloc(sizeof(struct graph_node));
 		g_node->command = command;
 		g_node->size = 10;
-		g_node->before = (GraphNode)malloc(g_node->size*sizeof(struct graph_node)); 
+		g_node->before = (GraphNode*)malloc(g_node->size*sizeof(GraphNode)); 
 		g_node->count = 0;
 		g_node->pid = -1;
 
@@ -236,7 +272,7 @@ createGraph(command_stream_t stream)
 				if (g_node->count >= g_node->size)
 				{
 					g_node->size *= 2;
-					g_node->before = (GraphNode)realloc(g_node->before, g_node->size*sizeof(struct graph_node));
+					g_node->before = (GraphNode*)realloc(g_node->before, g_node->size*sizeof(GraphNode));
 				}
 			}
 			iter = iter->next;
@@ -250,7 +286,7 @@ createGraph(command_stream_t stream)
 				if (g_node->count >= g_node->size)
 				{
 					g_node->size *= 2;
-					g_node->before = (GraphNode)realloc(g_node->before, g_node->size*sizeof(struct graph_node));
+					g_node->before = (GraphNode*)realloc(g_node->before, g_node->size*sizeof(struct graph_node));
 				}
 			}
 			iter = iter->next;
@@ -259,7 +295,7 @@ createGraph(command_stream_t stream)
 
 		// 3. Add l_node to graph accordingly. 
 		// TODO implementation depends on part 2. 
-		if (g_node->before == NULL) {
+		if (g_node->count == 0) {
 			iter = graph->no_dependencies;
 			if (iter == NULL) {
 				graph->no_dependencies = l_node;
@@ -274,7 +310,7 @@ createGraph(command_stream_t stream)
 		else {
 			iter = graph->dependencies;
 			if (iter == NULL) {
-				graph->no_dependencies = l_node;
+				graph->dependencies = l_node;
 			}
 			else {
 				while (iter->next != NULL) {
