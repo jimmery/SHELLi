@@ -262,29 +262,25 @@ createGraph(command_stream_t stream)
 		if (g_node->before == NULL) {
 			iter = graph->no_dependencies;
 			if (iter == NULL) {
-				no_dependencies = (ListNode)malloc(sizeof(struct list_node));
-				no_dependencies->graphnode = g_node;
+				graph->no_dependencies = l_node;
 			}
 			else {
 				while (iter->next != NULL) {
 					iter = iter->next;
 				}
-				iter->next = (ListNode)malloc(sizeof(struct list_node));
-				iter->next->graphnode = g_node;
+				iter->next = l_node;
 			}
 		}
 		else {
 			iter = graph->dependencies;
 			if (iter == NULL) {
-				no_dependencies = (ListNode)malloc(sizeof(struct list_node));
-				no_dependencies->graphnode = g_node;
+				graph->no_dependencies = l_node;
 			}
 			else {
 				while (iter->next != NULL) {
 					iter = iter->next;
 				}
-				iter->next = (ListNode)malloc(sizeof(struct list_node));
-				iter->next->graphnode = g_node;
+				iter->next = l_node;
 			}
 
 		}
@@ -318,25 +314,31 @@ static void
 executeDependencies(ListNode dependencies) 
 {
 	//TODO: implementation here
-	ListNode currentNode = dependencies;
-	while (currentNode != NULL) 
+	ListNode i = dependencies;
+	while (i != NULL) 
 	{
 		int status;
-		GraphNode i = currentNode->graphnode;
+		int bCount = 0;
+		for (;bCount < i->graphnode->count; bCount++)
+		{
+			GraphNode j = i->graphnode->before[bCount];
+			waitpid(j->pid, &status, 0);
+		}
+
 		//TODO: check for befores and stuffs?
 		//not clue what to do. here goes...something
-
+		
 		int pid = fork();
 		if (pid == 0)
 		{
-			execute_command(i->command, true);
+			execute_command(i->graphnode->command, true);
 			exit(0);
 		}
 		else 
 		{
-			i->pid = pid;
+			i->graphnode->pid = pid;
 		}
-		currentNode = currentNode->next;
+		i = i->next;
 	}
 }
 
