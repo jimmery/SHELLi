@@ -115,3 +115,55 @@ switch (c->type):
         determine its own exit status. 
         
 also made some minor changes to 1a to account for some bugs (which were, in general, nonconsequential)
+
+
+Finally, for lab 1C: 
+Here we had to make several considerations to fully execute parallelism. 
+We want to make a Dependency Graph, which is completely represented by three structures: 
+GraphNode: 
+  contains a command tree, and information about all the command trees that this 
+  GraphNode's command tree must depend on in order to run. 
+  also contains the pid of the child it produces. 
+ListNode: 
+  contains a GraphNode. 
+  contains the read and write list of the GraphNode. 
+  contains the next ListNode. (linked list implementation)
+DependencyGraph: 
+  contains two linked lists of ListNodes. 
+  one list contains all GraphNodes that have no dependency with any other command tree. 
+  one list contains all GraphNodes that have a dependency with some other command tree. 
+
+Therefore, we need to create a couple of functions to fully implement these three structures. 
+We need to...
+
+hasDependency(ListNode, ListNode)
+  returns true if there is an intersection between one's writelist with the other's lists. 
+
+processCommand(command_t, ListNode)
+  Takes a command and generates the read and write lists of a ListNode. 
+
+creates a Dependency Graph for a command stream.  
+createGraph(command_stream_t)
+  create and initialize a new DependencyGraph. 
+  for each command in command stream: 
+    create a new GraphNode.
+      add the command. 
+      initialize everything else to default values. 
+    create a new ListNode. 
+      add the Graph Node. 
+      initialize everything else to default values. 
+    processCommand(command, ListNode)
+    
+    properly create the before list for the GraphNode 
+      using hasDependency().
+      
+    add the ListNode into the DependencyGraph, 
+      depending on the size of the before list. 
+
+executeGraph(DependencyGraph)
+  execute everything with no dependencies: 
+    fork a process for every command tree to execute these commands. 
+  execute dependencies: 
+    wait for the dependencies to complete, 
+    then execute the command. 
+    
